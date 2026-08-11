@@ -10,10 +10,6 @@ static s1 read_s1(u1 **p) { return (s1)read_u1_c(p); }
 static s2 read_s2(u1 **p) { return (s2)read_u2_c(p); }
 static s4 read_s4(u1 **p) { return (s4)read_u4_c(p); }
 
-static jvm_object *cp_resolve_class(jvm_class *cls, u2 idx) {
-    return (jvm_object*)(intptr_t)0;
-}
-
 static jvm_method *find_method_in_class(jvm_class *cls, const char *name, const char *desc) {
     if (!cls) return NULL;
     for (s4 i = 0; i < cls->methods_count; i++) {
@@ -872,7 +868,7 @@ void jvm_execute(jvm_thread *thread) {
             }
 
             case 0xD0: {
-                s4 offset = (pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]; pc+=4;
+                pc += 4;
                 break;
             }
 

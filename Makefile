@@ -6,7 +6,8 @@ EMCC_FLAGS = -O2 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
              -s NO_EXIT_RUNTIME=1 \
              -s INITIAL_MEMORY=268435456 \
              -s STACK_SIZE=8388608 \
-             -s MAXIMUM_MEMORY=536870912
+             -s MAXIMUM_MEMORY=536870912 \
+             -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
 JVM_SOURCES = jvm/jvm.c jvm/bytecode.c
 JVM_OUTPUT = public/jvm.js

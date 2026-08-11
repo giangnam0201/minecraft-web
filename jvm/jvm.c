@@ -12,8 +12,6 @@ s4 jvm_heap_used = 0;
 jvm_object *jvm_objects = NULL;
 jvm_thread jvm_threads[JVM_MAX_THREADS];
 
-static s4 next_object_id = 1;
-
 static u1 read_u1(u1 **p) {
     u1 v = **p;
     *p += 1;
