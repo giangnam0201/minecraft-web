@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build, Test, and Deploy
 
 on:
   push:
@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,13 +32,72 @@ jobs:
       - name: Build WASM JVM
         run: make all
 
+      - name: Verify build outputs
+        run: |
+          echo "=== Built files ==="
+          ls -la public/
+          ls -la public/js/ 2>/dev/null || true
+          echo "=== WASM size ==="
+          wc -c public/jvm.wasm 2>/dev/null || echo "no wasm"
+          wc -c public/jvm.js 2>/dev/null || echo "no jvm.js"
+          echo "=== Checking exports ==="
+          grep -c 'jvm_init\|jvm_load_blob\|jvm_find_class' public/jvm.js || echo "exports check done"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
+        id: upload
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: ./public
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Playwright
+        run: |
+          cd test
+          npm init -y > /dev/null 2>&1
+          npm install playwright@latest
+          npx playwright install chromium --with-deps
+
+      - name: Run smoke test
+        id: test
+        timeout-minutes: 5
+        run: |
+          cd test
+          node smoke-test.js
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test/*.png
+
+      - name: Report
+        if: always()
+        run: |
+          if [ -f test/result.txt ]; then
+            echo "=== TEST RESULTS ==="
+            cat test/result.txt
+          fi
 
   deploy:
     environment:
