@@ -221,7 +221,7 @@ class InputManager {
             if (btn >= 0 && btn < 8) {
                 this.mouseButtons[btn] = 1;
             }
-            this.canvas.requestPointerLock();
+            try { this.canvas.requestPointerLock(); } catch(_) {}
         });
 
         this.canvas.addEventListener('mouseup', (e) => {

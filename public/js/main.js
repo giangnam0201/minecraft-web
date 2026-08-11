@@ -113,13 +113,13 @@ async function boot() {
     const st = document.getElementById('status');
     const pc = document.getElementById('status-percent');
     st.textContent = 'Loading Minecraft blob...';
-    audioManager.init();
+    try { audioManager.init(); } catch(e) {}
     renderer.init();
 
     try {
-        const resp = await fetch('minecraft.blob');
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} - blob not pre-built?`);
-        const total = +resp.headers.get('content-length') || 0;
+        const resp = await fetch('minecraft.blob?v=2');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} - blob missing`);
+        const total = +resp.headers.get('content-length') || 27000000;
         const reader = resp.body.getReader();
         const chunks = [];
         let rx = 0;
@@ -128,36 +128,50 @@ async function boot() {
             if (done) break;
             chunks.push(value);
             rx += value.length;
-            if (total) pc.textContent = Math.round(rx/total*100)+'%';
+            pc.textContent = `${Math.round(rx/Math.max(total,1)*100)}% (${(rx/1024/1024).toFixed(1)}MB)`;
         }
         const blob = new Uint8Array(rx);
         let pos = 0;
         for (const c of chunks) { blob.set(c,pos); pos += c.length; }
-        st.textContent = `Loading ${(blob.length/1024/1024).toFixed(1)}MB into JVM...`;
-        pc.textContent = '';
+        st.textContent = `Parsing ${(blob.length/1024/1024).toFixed(1)}MB into JVM...`;
+        pc.textContent = 'This may take a few seconds';
 
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 50));
 
         const ptr = Module._malloc(blob.length);
+        if (!ptr) throw new Error('malloc failed - out of WASM memory');
         Module.HEAPU8.set(blob, ptr);
+        st.textContent = 'Loading classes...';
+        pc.textContent = '';
         const loaded = jvmLoadBlob(ptr, blob.length);
         Module._free(ptr);
 
-        st.textContent = `Loaded ${loaded} classes. Booting Minecraft...`;
-        document.getElementById('loader').style.display = 'none';
+        st.textContent = `${loaded} classes loaded. Finding main...`;
+        pc.textContent = '';
 
-        setTimeout(() => {
-            const mainCls = jvmFindClass('net/minecraft/client/main/Main');
-            if (mainCls) {
-                console.log('Found Main, invoking...');
-                try { jvmInvokeStatic(mainCls, 'main', '([Ljava/lang/String;)V'); }
-                catch(e) { console.error('JVM crash:', e); }
-            } else {
-                console.error('Main class not found among', loaded, 'classes');
+        const mainCls = jvmFindClass('net/minecraft/client/main/Main');
+        if (mainCls) {
+            st.textContent = 'Booting Minecraft...';
+            document.getElementById('loader').style.display = 'none';
+            setTimeout(() => {
+                try {
+                    jvmInvokeStatic(mainCls, 'main', '([Ljava/lang/String;)V');
+                } catch(e) {
+                    console.error('JVM crash:', e);
+                    st.textContent = 'JVM crashed: ' + e.message;
+                    document.getElementById('loader').style.display = 'block';
+                }
+            }, 100);
+        } else {
+            st.textContent = `Main class not found! Loaded ${loaded} classes.`;
+            console.log('Available classes sample:');
+            for (let i = 0; i < Math.min(10, loaded); i++) {
+                console.log('  class #' + i);
             }
-        }, 200);
+        }
     } catch(e) {
         st.textContent = 'Error: ' + e.message;
+        pc.textContent = '';
         console.error(e);
     }
 }
