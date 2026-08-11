@@ -302,12 +302,11 @@ void jvm_execute(jvm_thread *thread) {
                 frame->locals[idx].d = frame->stack[*sp].d;
                 break;
             }
-            case 0x4F: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(s8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
-            case 0x50: { f4 v=frame->stack[*sp-1].f; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f4*)(a->data.arr.data+i*4)=v; (*sp)-=3; break; }
-            case 0x51: { f8 v=frame->stack[*sp-1].d; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
-            case 0x52: { jvm_object *v=frame->stack[*sp-1].r; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; (*sp)-=3; break; }
-            case 0x53: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)a->data.arr.data[i]=(u1)v; (*sp)-=3; break; }
-            case 0x54: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(u2*)(a->data.arr.data+i*2)=(u2)v; (*sp)-=3; break; }
+            case 0x50: { s8 v=frame->stack[*sp-1].l; jvm_object *a=frame->stack[*sp-3].r; s4 i=frame->stack[*sp-4].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(s8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
+            case 0x51: { f4 v=frame->stack[*sp-1].f; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f4*)(a->data.arr.data+i*4)=v; (*sp)-=3; break; }
+            case 0x52: { f8 v=frame->stack[*sp-1].d; jvm_object *a=frame->stack[*sp-3].r; s4 i=frame->stack[*sp-4].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
+            case 0x53: { jvm_object *v=frame->stack[*sp-1].r; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; (*sp)-=3; break; }
+            case 0x54: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)a->data.arr.data[i]=(u1)v; (*sp)-=3; break; }
             case 0x55: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(u2*)(a->data.arr.data+i*2)=(u2)v; (*sp)-=3; break; }
 
             case 0x57: (*sp)--; break;
