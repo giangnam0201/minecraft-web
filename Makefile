@@ -8,7 +8,7 @@ EMCC_FLAGS = -O2 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
              -s MAXIMUM_MEMORY=402653184 \
              -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
-JVM_SOURCES = jvm/jvm.c jvm/bytecode.c
+JVM_SOURCES = jvm/jvm.c jvm/bytecode.c jvm/native.c
 JVM_OUTPUT = public/jvm.js
 
 .PHONY: all clean serve
