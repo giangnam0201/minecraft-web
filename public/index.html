@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft Web - WASM JVM</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+}
+#container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#game-canvas {
+    display: block;
+    image-rendering: pixelated;
+    border: 2px solid #333;
+    background: #000;
+    max-width: 100vw;
+    max-height: 100vh;
+}
+#loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+    background: rgba(0,0,0,0.85);
+    padding: 32px 48px;
+    border-radius: 12px;
+    border: 1px solid #444;
+}
+#loader h1 {
+    font-size: 28px;
+    margin-bottom: 16px;
+    color: #7ec850;
+}
+#loader p {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #999;
+}
+#loader .spinner {
+    border: 3px solid #333;
+    border-top: 3px solid #7ec850;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 0.8s linear infinite;
+    margin: 16px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 20;
+    background: rgba(0,0,0,0.7);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #aaa;
+}
+#status { color: #7ec850; }
+#drop-zone {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+#drop-zone.active {
+    pointer-events: all;
+    background: rgba(126,200,80,0.15);
+    border: 3px dashed #7ec850;
+}
+#file-input { display: none; }
+</style>
+</head>
+<body>
+
+<div id="container">
+    <canvas id="game-canvas" width="854" height="480"></canvas>
+
+    <div id="loader">
+        <h1>Minecraft Web</h1>
+        <p>WASM JVM - Pure Client-Side</p>
+        <div class="spinner"></div>
+        <p id="status">Loading WASM JVM...</p>
+        <p style="font-size:12px;color:#666;margin-top:12px;">
+            Drag & drop a Minecraft client JAR to play<br>
+            (1.16.5 supported)
+        </p>
+        <input type="file" id="file-input" accept=".jar">
+    </div>
+
+    <div id="overlay">
+        <span id="status">Initialising...</span>
+    </div>
+
+    <div id="drop-zone"></div>
+</div>
+
+<script src="jvm.js"></script>
+<script type="module" src="src/main.js"></script>
+
+<script>
+(function() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('active');
+    });
+    document.addEventListener('dragleave', () => {
+        dropZone.classList.remove('active');
+    });
+    document.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('active');
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith('.jar')) {
+            const buf = await file.arrayBuffer();
+            if (window.loadJarFromArrayBuffer) {
+                window.loadJarFromArrayBuffer(buf);
+            }
+        }
+    });
+
+    document.getElementById('loader').addEventListener('click', () => {
+        fileInput.click();
+    });
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const buf = await file.arrayBuffer();
+            if (window.loadJarFromArrayBuffer) {
+                window.loadJarFromArrayBuffer(buf);
+            }
+        }
+    });
+})();
+</script>
+
+</body>
+</html>

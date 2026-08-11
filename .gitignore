@@ -1,0 +1,7 @@
+*.o
+*.wasm
+/public/jvm.js
+/public/jvm.wasm
+/node_modules
+.DS_Store
+Thumbs.db
