@@ -53,6 +53,66 @@ body{
         </div>
     </div>
 </div>
+<script>
+// Stub ALL bridge functions so WASM can instantiate before main.js loads
+var Module = window.Module = window.Module || {};
+Module.print = Module.print || function(t){console.log('[JVM]',t)};
+Module.printErr = Module.printErr || function(t){console.error('[JVM]',t)};
+Module.preRun = []; Module.postRun = [];
+var noop = function(){}, noop0 = function(){return 0;}, noop1 = function(){return 1;};
+Module.js_gl_clear=noop; Module.js_gl_clear_color=noop; Module.js_gl_viewport=noop;
+Module.js_gl_enable=noop; Module.js_gl_disable=noop; Module.js_gl_bind_texture=noop;
+Module.js_gl_gen_textures=noop; Module.js_gl_delete_textures=noop; Module.js_gl_tex_image_2d=noop;
+Module.js_gl_draw_arrays=noop; Module.js_gl_gen_buffers=noop; Module.js_gl_bind_buffer=noop;
+Module.js_gl_buffer_data=noop; Module.js_gl_buffer_sub_data=noop;
+Module.js_gl_begin=noop; Module.js_gl_end=noop; Module.js_gl_vertex2f=noop;
+Module.js_gl_vertex3f=noop; Module.js_gl_tex_coord2f=noop; Module.js_gl_color3f=noop;
+Module.js_gl_color4f=noop; Module.js_gl_matrix_mode=noop; Module.js_gl_load_identity=noop;
+Module.js_gl_push_matrix=noop; Module.js_gl_pop_matrix=noop; Module.js_gl_translatef=noop;
+Module.js_gl_rotatef=noop; Module.js_gl_scalef=noop; Module.js_gl_ortho=noop;
+Module.js_gl_new_list=noop; Module.js_gl_end_list=noop; Module.js_gl_call_list=noop;
+Module.js_gl_tex_parameteri=noop; Module.js_gl_blend_func=noop; Module.js_gl_depth_func=noop;
+Module.js_gl_depth_mask=noop; Module.js_gl_color_mask=noop; Module.js_gl_cull_face=noop;
+Module.js_gl_alpha_func=noop; Module.js_gl_get_string=noop; Module.js_gl_get_error=noop0;
+Module.js_gl_read_pixels=noop; Module.js_gl_get_integerv=noop; Module.js_gl_line_width=noop;
+Module.js_gl_polygon_offset=noop; Module.js_gl_scissor=noop; Module.js_gl_active_texture=noop;
+Module.js_gl_fogi=noop; Module.js_gl_fogf=noop; Module.js_gl_fogfv=noop;
+Module.js_gl_generate_mipmap=noop; Module.js_gl_pixel_storei=noop;
+Module.js_gl_shader_source=noop; Module.js_gl_compile_shader=noop;
+Module.js_gl_create_shader=noop0; Module.js_gl_create_program=noop0;
+Module.js_gl_attach_shader=noop; Module.js_gl_link_program=noop; Module.js_gl_use_program=noop;
+Module.js_gl_get_uniform_location=noop0; Module.js_gl_uniform1i=noop;
+Module.js_gl_uniform1f=noop; Module.js_gl_uniform_matrix4fv=noop;
+Module.js_gl_vertex_attrib_pointer=noop; Module.js_gl_enable_vertex_attrib=noop;
+Module.js_create_window=noop; Module.js_set_display_mode=noop;
+Module.js_swap_buffers=noop; Module.js_is_close_requested=noop0;
+Module.js_get_key_state=noop0; Module.js_get_mouse_button=noop0;
+Module.js_get_mouse_x=noop0; Module.js_get_mouse_y=noop0;
+Module.js_set_mouse_grabbed=noop; Module.js_is_mouse_grabbed=noop0;
+Module.js_log=noop; Module.js_log_i=noop; Module.js_cur_ms=function(){return Date.now()};
+Module.js_resource_exists=noop0; Module.js_resource_read=noop0; Module.js_resource_size=noop0;
+Module.js_gl_clear_depth=noop; Module.js_gl_clear_stencil=noop;
+Module.js_gl_front_face=noop; Module.js_gl_shade_model=noop;
+Module.js_gl_point_size=noop; Module.js_gl_tex_parameterf=noop;
+Module.js_gl_tex_sub_image_2d=noop; Module.js_gl_copy_tex_sub_image_2d=noop;
+Module.js_gl_uniform2f=noop; Module.js_gl_uniform3f=noop; Module.js_gl_uniform4f=noop;
+Module.js_gl_load_identity=noop;
+Module.js_gl_vertex2fv=noop; Module.js_gl_vertex3fv=noop;
+Module.js_gl_color3ub=noop; Module.js_gl_color4ub=noop; Module.js_gl_normal3f=noop;
+Module.js_gl_get_floatv=noop; Module.js_gl_delete_lists=noop;
+Module.js_gl_gen_lists=noop0; Module.js_gl_is_list=noop0;
+Module.js_gl_read_buffer=noop; Module.js_gl_bind_framebuffer=noop;
+Module.js_gl_gen_framebuffers=noop; Module.js_gl_delete_framebuffers=noop;
+Module.js_gl_framebuffer_texture2d=noop; Module.js_gl_check_framebuffer_status=noop0;
+Module.js_audio_init=noop0; Module.js_audio_play=noop; Module.js_audio_stop=noop;
+Module.js_audio_set_volume=noop; Module.js_audio_al_gen_sources=noop;
+Module.js_audio_al_delete_sources=noop; Module.js_audio_al_gen_buffers=noop;
+Module.js_audio_al_buffer_data=noop; Module.js_audio_al_source_play=noop;
+Module.js_audio_al_source_stop=noop; Module.js_audio_al_sourcef=noop;
+Module.js_audio_al_get_error=noop0;
+Module.js_socket_connect=noop; Module.js_socket_send=noop;
+Module.js_socket_recv=noop0; Module.js_socket_close=noop; Module.js_socket_available=noop0;
+</script>
 <script src="jvm.js"></script>
 <script type="module" src="js/main.js"></script>
 <script>
