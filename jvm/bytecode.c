@@ -316,6 +316,7 @@ void jvm_execute(jvm_thread *thread) {
             case 0x5C: { frame->stack[*sp]=frame->stack[*sp-2]; frame->stack[*sp+1]=frame->stack[*sp-1]; (*sp)+=2; break; }
             case 0x5F: { jvm_value a=frame->stack[*sp-1]; jvm_value b=frame->stack[*sp-2]; frame->stack[*sp-2]=a; frame->stack[*sp-1]=b; break; }
 
+            case 0x60: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a+b;(*sp)++;break; }
             case 0x62: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=a+b;(*sp)++;break;}
             case 0x63: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=a+b;(*sp)+=2;break;}
             case 0x66: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=a-b;(*sp)++;break;}
@@ -326,7 +327,8 @@ void jvm_execute(jvm_thread *thread) {
             case 0x6F: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=b!=0.0?a/b:0;(*sp)+=2;break;}
             case 0x72: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=(f4)fmodf(a,b);(*sp)++;break;}
             case 0x73: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=fmod(a,b);(*sp)+=2;break;}
-            case 0x75: { frame->stack[*sp-1].f = -frame->stack[*sp-1].f; break; }
+            case 0x74: { frame->stack[*sp-1].i = -frame->stack[*sp-1].i; break; }
+            case 0x75: { frame->stack[*sp-1].l = -frame->stack[*sp-1].l; break; }
             case 0x76: { frame->stack[*sp-1].f = -frame->stack[*sp-1].f; break; }
             case 0x77: { frame->stack[*sp-1].d = -frame->stack[*sp-1].d; break; }
             case 0x78: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a<<(b&0x1F);(*sp)++;break;}
@@ -570,24 +572,7 @@ void jvm_execute(jvm_thread *thread) {
             }
 
             case 0x59: frame->stack[*sp] = frame->stack[*sp-1]; frame->stack[*sp].i = frame->stack[*sp-1].i; (*sp)++; break;
-            case 0x60: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = a + b;
-                (*sp)++;
-                break;
-            }
-            case 0x60: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = a + b;
-                (*sp)++;
-                break;
-            }
+
             case 0x61: {
                 (*sp)-=2; (*sp)-=2;
                 s8 b = frame->stack[*sp+1].l;
@@ -640,16 +625,8 @@ void jvm_execute(jvm_thread *thread) {
                 (*sp)++;
                 break;
             }
-            case 0x74: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = -a;
-                (*sp)++;
-                break;
-            }
-            case 0x74: {
+
+            case 0x99: {
                 (*sp)--;
                 s2 offset = (pc[0]<<8)|pc[1]; pc+=2;
                 if (frame->stack[*sp].i == 0) pc = frame->method->code + ((pc - frame->method->code) - 3 + offset);
@@ -1037,7 +1014,7 @@ void jvm_execute(jvm_thread *thread) {
                 break;
             }
 
-            case 0xBE: {
+            case 0x2E: {
                 jvm_object *obj = frame->stack[*sp-2].r;
                 s4 idx = frame->stack[*sp-1].i;
                 s4 val = obj && obj->data.arr.data && idx >= 0 && idx < obj->data.arr.length
@@ -1047,7 +1024,8 @@ void jvm_execute(jvm_thread *thread) {
                 (*sp)++;
                 break;
             }
-            case 0xBF: {
+
+            case 0x4F: {
                 s4 val = frame->stack[*sp-1].i;
                 jvm_object *obj = frame->stack[*sp-2].r;
                 s4 idx = frame->stack[*sp-3].i;
@@ -1057,6 +1035,7 @@ void jvm_execute(jvm_thread *thread) {
                 (*sp)-=3;
                 break;
             }
+
             case 0xC0: {
                 jvm_object *obj = frame->stack[*sp-1].r;
                 u2 idx = (pc[0]<<8)|pc[1]; pc+=2;
@@ -1110,3 +1089,4 @@ void jvm_execute(jvm_thread *thread) {
         }
     }
 }
+
