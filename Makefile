@@ -1,14 +1,14 @@
 EMCC = emcc
 EMCC_FLAGS = -O2 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
-             -s EXPORTED_FUNCTIONS='["_jvm_init","_jvm_load_class","_jvm_execute","_jvm_invoke_static","_jvm_find_class","_malloc","_free"]' \
+             -s EXPORTED_FUNCTIONS='["_jvm_init","_jvm_load_class","_jvm_load_blob","_jvm_find_class","_jvm_invoke_static","_malloc","_free"]' \
              -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","getValue","setValue","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
              -s NO_EXIT_RUNTIME=1 \
-             -s INITIAL_MEMORY=201326592 \
+             -s INITIAL_MEMORY=134217728 \
              -s STACK_SIZE=2097152 \
-             -s MAXIMUM_MEMORY=402653184 \
+             -s MAXIMUM_MEMORY=268435456 \
              -s ERROR_ON_UNDEFINED_SYMBOLS=0
 
-JVM_SOURCES = jvm/jvm.c jvm/bytecode.c jvm/native.c
+JVM_SOURCES = jvm/jvm.c jvm/bytecode.c
 JVM_OUTPUT = public/jvm.js
 
 .PHONY: all clean serve
