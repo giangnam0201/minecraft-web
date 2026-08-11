@@ -67,7 +67,7 @@ jvm_object *jvm_alloc_obj(jvm_class *c);
 jvm_object *jvm_new_array(jvm_thread *t, s4 cnt, u1 type);
 jvm_object *jvm_new_string_utf8(jvm_thread *t, const char *s);
 void jvm_invoke_static(jvm_thread *t, jvm_class *c, const char *name, const char *desc);
-char *jvm_cp_utf8(jvm_class *c, u2 idx);
+char *jvm_cp_utf8(u2 idx, jvm_class *c);
 jvm_class *jvm_cp_class(jvm_class *c, u2 idx);
 void jvm_push_i(jvm_thread *t, s4 v);
 void jvm_push_l(jvm_thread *t, s8 v);

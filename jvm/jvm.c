@@ -44,7 +44,7 @@ static u1 read_u1(u1 **p) { u1 v = **p; (*p)++; return v; }
 static u2 read_u2(u1 **p) { u2 v = ((u2)(*p)[0]<<8)|(*p)[1]; *p += 2; return v; }
 static u4 read_u4(u1 **p) { u4 v = ((u4)(*p)[0]<<24)|((u4)(*p)[1]<<16)|((u4)(*p)[2]<<8)|(*p)[3]; *p += 4; return v; }
 
-char *jvm_cp_utf8(jvm_class *c, u2 idx) {
+char *jvm_cp_utf8(u2 idx, jvm_class *c) {
     if (idx == 0 || idx >= c->cp_count) return NULL;
     u1 *p = c->cp_raw;
     for (u2 i = 1; i < idx; i++) {
@@ -84,7 +84,7 @@ jvm_class *jvm_cp_class(jvm_class *c, u2 idx) {
     u1 tag = read_u1(&p);
     if (tag != 7) return NULL;
     u2 name_idx = read_u2(&p);
-    char *name = jvm_cp_utf8(c, name_idx);
+    char *name = jvm_cp_utf8(name_idx, c);
     if (!name) return NULL;
     jvm_class *cls = jvm_find_class(name);
     free(name);
@@ -122,7 +122,7 @@ s4 jvm_load_class(u1 *data, s4 len) {
     c->this_class = read_u2(&p);
 
     {
-        char *nm = jvm_cp_utf8(c, c->this_class);
+        char *nm = jvm_cp_utf8(c->this_class, c);
         if (nm) {
             u1 *pp = c->cp_raw;
             for (u2 i = 1; i < c->this_class; i++) { u1 t = read_u1(&pp); switch (t) {
@@ -134,7 +134,7 @@ s4 jvm_load_class(u1 *data, s4 len) {
                 default: break;
             }}
             u1 t = read_u1(&pp);
-            if (t == 7) { u2 ni = read_u2(&pp); c->name = jvm_cp_utf8(c, ni); }
+            if (t == 7) { u2 ni = read_u2(&pp); c->name = jvm_cp_utf8(ni, c); }
             free(nm);
         }
     }
@@ -151,7 +151,7 @@ s4 jvm_load_class(u1 *data, s4 len) {
             default: break;
         }}
         u1 t = read_u1(&pp);
-        if (t == 7) { u2 ni = read_u2(&pp); c->super_name = jvm_cp_utf8(c, ni); }
+        if (t == 7) { u2 ni = read_u2(&pp); c->super_name = jvm_cp_utf8(ni, c); }
     }
 
     u2 ic = read_u2(&p);
@@ -166,7 +166,7 @@ s4 jvm_load_class(u1 *data, s4 len) {
         f->cls = c;
         u2 ac = read_u2(&p);
         for (u2 j = 0; j < ac; j++) { u2 an = read_u2(&p); u4 al = read_u4(&p); p += al; }
-        char *desc = jvm_cp_utf8(c, f->desc_idx);
+        char *desc = jvm_cp_utf8(f->desc_idx, c);
         s4 sz = (desc && (desc[0] == 'J' || desc[0] == 'D')) ? 8 : 4;
         if (f->access & ACC_STATIC) { f->offset = stat_off; stat_off += sz; }
         else { f->offset = inst_off; inst_off += sz; }
@@ -185,7 +185,7 @@ s4 jvm_load_class(u1 *data, s4 len) {
         u2 ac = read_u2(&p);
         for (u2 j = 0; j < ac; j++) {
             u2 an = read_u2(&p); u4 al = read_u4(&p);
-            char *aname = jvm_cp_utf8(c, an);
+            char *aname = jvm_cp_utf8(an, c);
             if (aname && strcmp(aname, "Code") == 0) {
                 m->max_stack = read_u2(&p); m->max_locals = read_u2(&p);
                 m->code_len = read_u4(&p); m->code = p; p += m->code_len;
@@ -242,7 +242,7 @@ void jvm_init_class(jvm_thread *t, jvm_class *c) {
     }
     for (s4 i = 0; i < c->methods_count; i++) {
         jvm_method *m = &c->methods[i];
-        char *mn = jvm_cp_utf8(c, m->name_idx);
+        char *mn = jvm_cp_utf8(m->name_idx, c);
         if (mn && strcmp(mn, "<clinit>") == 0 && (m->access & ACC_STATIC)) {
             if (m->code) {
                 jvm_frame *f = &t->frames[t->frame_cnt];
@@ -292,7 +292,7 @@ jvm_object *jvm_new_string_utf8(jvm_thread *t, const char *s) {
     }
     for (s4 i = 0; i < sc->fields_count; i++) {
         jvm_field *f = &sc->fields[i];
-        char *fn = jvm_cp_utf8(sc, f->name_idx);
+        char *fn = jvm_cp_utf8(f->name_idx, sc);
         if (fn && strcmp(fn, "value") == 0) {
             *(jvm_object **)(so->fields + f->offset) = ca;
         }
@@ -313,8 +313,8 @@ void jvm_invoke_static(jvm_thread *t, jvm_class *c, const char *name, const char
     if (!c) return;
     for (s4 i = 0; i < c->methods_count; i++) {
         jvm_method *m = &c->methods[i];
-        char *mn = jvm_cp_utf8(c, m->name_idx);
-        char *md = jvm_cp_utf8(c, m->desc_idx);
+        char *mn = jvm_cp_utf8(m->name_idx, c);
+        char *md = jvm_cp_utf8(m->desc_idx, c);
         bool match = mn && md && strcmp(mn, name) == 0 && strcmp(md, desc) == 0;
         if (mn) free(mn); if (md) free(md);
         if (!match) continue;

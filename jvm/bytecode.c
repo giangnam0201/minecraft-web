@@ -13,8 +13,8 @@ static s4 read_s4(u1 **p) { return (s4)read_u4_c(p); }
 static jvm_method *find_method_in_class(jvm_class *cls, const char *name, const char *desc) {
     if (!cls) return NULL;
     for (s4 i = 0; i < cls->methods_count; i++) {
-        char *mn = jvm_cp_utf8(cls->methods[i].name_index, cls);
-        char *md = jvm_cp_utf8(cls->methods[i].desc_index, cls);
+        char *mn = jvm_cp_utf8(cls->methods[i].name_idx, cls);
+        char *md = jvm_cp_utf8(cls->methods[i].desc_idx, cls);
         if (mn && md && strcmp(mn, name) == 0 && strcmp(md, desc) == 0) {
             if (mn) free(mn);
             if (md) free(md);
@@ -29,8 +29,8 @@ static jvm_method *find_method_in_class(jvm_class *cls, const char *name, const 
 static jvm_field *find_field_in_class(jvm_class *cls, const char *name, const char *desc) {
     if (!cls) return NULL;
     for (s4 i = 0; i < cls->fields_count; i++) {
-        char *fn = jvm_cp_utf8(cls->fields[i].name_index, cls);
-        char *fd = jvm_cp_utf8(cls->fields[i].desc_index, cls);
+        char *fn = jvm_cp_utf8(cls->fields[i].name_idx, cls);
+        char *fd = jvm_cp_utf8(cls->fields[i].desc_idx, cls);
         if (fn && fd && strcmp(fn, name) == 0 && strcmp(fd, desc) == 0) {
             if (fn) free(fn);
             if (fd) free(fd);
@@ -403,7 +403,7 @@ void jvm_execute(jvm_thread *thread) {
             case 0xBF: {
                 jvm_object *exc = frame->stack[*sp-1].r;
                 (*sp)--;
-                thread->pending_exception = exc;
+                thread->exception = exc;
                 frame->pc = pc;
                 return;
             }
