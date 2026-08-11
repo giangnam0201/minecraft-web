@@ -287,6 +287,265 @@ void jvm_execute(jvm_thread *thread) {
                 break;
             }
 
+            case 0x43: {
+                u1 idx = *pc; pc++;
+                (*sp)--;
+                frame->locals[idx].f = frame->stack[*sp].f;
+                break;
+            }
+            case 0x44: { (*sp)--; frame->locals[0].f = frame->stack[*sp].f; break; }
+            case 0x45: { (*sp)--; frame->locals[1].f = frame->stack[*sp].f; break; }
+            case 0x46: { (*sp)--; frame->locals[2].f = frame->stack[*sp].f; break; }
+            case 0x47: {
+                u1 idx = *pc; pc++;
+                (*sp)-=2;
+                frame->locals[idx].d = frame->stack[*sp].d;
+                break;
+            }
+            case 0x4F: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(s8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
+            case 0x50: { f4 v=frame->stack[*sp-1].f; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f4*)(a->data.arr.data+i*4)=v; (*sp)-=3; break; }
+            case 0x51: { f8 v=frame->stack[*sp-1].d; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(f8*)(a->data.arr.data+i*8)=v; (*sp)-=4; break; }
+            case 0x52: { jvm_object *v=frame->stack[*sp-1].r; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; (*sp)-=3; break; }
+            case 0x53: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)a->data.arr.data[i]=(u1)v; (*sp)-=3; break; }
+            case 0x54: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(u2*)(a->data.arr.data+i*2)=(u2)v; (*sp)-=3; break; }
+            case 0x55: { s4 v=frame->stack[*sp-1].i; jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-3].i; if(a&&a->data.arr.data&&i>=0&&i<a->data.arr.length)*(u2*)(a->data.arr.data+i*2)=(u2)v; (*sp)-=3; break; }
+
+            case 0x57: (*sp)--; break;
+            case 0x58: (*sp)-=2; break;
+            case 0x5A: { jvm_value v=frame->stack[*sp-1]; frame->stack[*sp-1]=frame->stack[*sp-2]; frame->stack[*sp-2]=v; (*sp)++; break; }
+            case 0x5C: { frame->stack[*sp]=frame->stack[*sp-2]; frame->stack[*sp+1]=frame->stack[*sp-1]; (*sp)+=2; break; }
+            case 0x5F: { jvm_value a=frame->stack[*sp-1]; jvm_value b=frame->stack[*sp-2]; frame->stack[*sp-2]=a; frame->stack[*sp-1]=b; break; }
+
+            case 0x62: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=a+b;(*sp)++;break;}
+            case 0x63: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=a+b;(*sp)+=2;break;}
+            case 0x66: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=a-b;(*sp)++;break;}
+            case 0x67: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=a-b;(*sp)+=2;break;}
+            case 0x6A: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=a*b;(*sp)++;break;}
+            case 0x6B: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=a*b;(*sp)+=2;break;}
+            case 0x6E: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=b!=0.0f?a/b:0;(*sp)++;break;}
+            case 0x6F: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=b!=0.0?a/b:0;(*sp)+=2;break;}
+            case 0x72: { (*sp)-=2;(*sp)-=2;f4 b=frame->stack[*sp+1].f;f4 a=frame->stack[*sp].f;frame->stack[*sp].f=(f4)fmodf(a,b);(*sp)++;break;}
+            case 0x73: { (*sp)-=4;f8 b=frame->stack[*sp+1].d;f8 a=frame->stack[*sp].d;frame->stack[*sp].d=fmod(a,b);(*sp)+=2;break;}
+            case 0x75: { frame->stack[*sp-1].f = -frame->stack[*sp-1].f; break; }
+            case 0x76: { frame->stack[*sp-1].f = -frame->stack[*sp-1].f; break; }
+            case 0x77: { frame->stack[*sp-1].d = -frame->stack[*sp-1].d; break; }
+            case 0x78: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a<<(b&0x1F);(*sp)++;break;}
+            case 0x7A: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a>>(b&0x1F);(*sp)++;break;}
+            case 0x7C: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=(s4)((u4)a>>(b&0x1F));(*sp)++;break;}
+            case 0x7D: { (*sp)-=4;s8 b=frame->stack[*sp+1].l;s8 a=frame->stack[*sp].l;frame->stack[*sp].l=a>>(b&0x3F);(*sp)+=2;break;}
+            case 0x7E: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a&b;(*sp)++;break;}
+            case 0x7F: { (*sp)-=4;s8 b=frame->stack[*sp+1].l;s8 a=frame->stack[*sp].l;frame->stack[*sp].l=a&b;(*sp)+=2;break;}
+            case 0x80: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a|b;(*sp)++;break;}
+            case 0x81: { (*sp)-=4;s8 b=frame->stack[*sp+1].l;s8 a=frame->stack[*sp].l;frame->stack[*sp].l=a|b;(*sp)+=2;break;}
+            case 0x82: { (*sp)-=2;(*sp)-=2;s4 b=frame->stack[*sp+1].i;s4 a=frame->stack[*sp].i;frame->stack[*sp].i=a^b;(*sp)++;break;}
+            case 0x83: { (*sp)-=4;s8 b=frame->stack[*sp+1].l;s8 a=frame->stack[*sp].l;frame->stack[*sp].l=a^b;(*sp)+=2;break;}
+
+            case 0x84: {
+                u1 idx = *pc; pc++;
+                s1 cnst = (s1)*pc; pc++;
+                frame->locals[idx].i += cnst;
+                break;
+            }
+
+            case 0x85: frame->stack[*sp-1].l = (s8)frame->stack[*sp-1].i; (*sp)++; break;
+            case 0x86: frame->stack[*sp-1].f = (f4)frame->stack[*sp-1].i; break;
+            case 0x87: frame->stack[*sp-1].d = (f8)frame->stack[*sp-1].i; (*sp)++; break;
+            case 0x88: frame->stack[*sp-1].i = (s4)frame->stack[*sp-2].l; (*sp)--; break;
+            case 0x89: frame->stack[*sp-1].f = (f4)frame->stack[*sp-2].l; (*sp)--; break;
+            case 0x8A: frame->stack[*sp-1].d = (f8)frame->stack[*sp-2].l; break;
+            case 0x8B: frame->stack[*sp-1].i = (s4)frame->stack[*sp-1].f; break;
+            case 0x8C: frame->stack[*sp-1].l = (s8)frame->stack[*sp-1].f; (*sp)++; break;
+            case 0x8D: frame->stack[*sp-1].d = (f8)frame->stack[*sp-1].f; (*sp)++; break;
+            case 0x8E: frame->stack[*sp-1].i = (s4)frame->stack[*sp-3].d; (*sp)-=2; break;
+            case 0x8F: frame->stack[*sp-1].l = (s8)frame->stack[*sp-3].d; (*sp)--; break;
+            case 0x90: frame->stack[*sp-1].f = (f4)frame->stack[*sp-3].d; (*sp)-=2; break;
+            case 0x91: frame->stack[*sp-1].i = (s4)(s1)frame->stack[*sp-1].i; break;
+            case 0x92: frame->stack[*sp-1].i = (s4)(u2)frame->stack[*sp-1].i; break;
+            case 0x93: frame->stack[*sp-1].i = (s4)(s2)frame->stack[*sp-1].i; break;
+
+            case 0x94: {
+                s8 b = frame->stack[*sp-1].l; s8 a = frame->stack[*sp-3].l;
+                frame->stack[*sp-3].i = (a > b) ? 1 : (a < b) ? -1 : 0;
+                (*sp)-=3;
+                break;
+            }
+            case 0x95: {
+                f4 b = frame->stack[*sp-1].f; f4 a = frame->stack[*sp-2].f;
+                frame->stack[*sp-2].i = (a > b) ? 1 : (a < b) ? -1 : 0;
+                (*sp)--;
+                break;
+            }
+            case 0x96: {
+                f4 b = frame->stack[*sp-1].f; f4 a = frame->stack[*sp-2].f;
+                frame->stack[*sp-2].i = (a > b) ? 1 : (a == b) ? 0 : -1;
+                (*sp)--;
+                break;
+            }
+            case 0x97: {
+                f8 b = frame->stack[*sp-1].d; f8 a = frame->stack[*sp-3].d;
+                frame->stack[*sp-3].i = (a > b) ? 1 : (a < b) ? -1 : 0;
+                (*sp)-=3;
+                break;
+            }
+            case 0x98: {
+                f8 b = frame->stack[*sp-1].d; f8 a = frame->stack[*sp-3].d;
+                frame->stack[*sp-3].i = (a > b) ? 1 : (a == b) ? 0 : -1;
+                (*sp)-=3;
+                break;
+            }
+
+            case 0xBE: {
+                jvm_object *arr = frame->stack[*sp-1].r;
+                frame->stack[*sp-1].i = (arr && arr->is_array) ? arr->data.arr.length : 0;
+                break;
+            }
+            case 0xBF: {
+                jvm_object *exc = frame->stack[*sp-1].r;
+                (*sp)--;
+                thread->pending_exception = exc;
+                frame->pc = pc;
+                return;
+            }
+
+            case 0x2F: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].l=a&&a->data.arr.data&&i>=0&&i<a->data.arr.length?*(s8*)(a->data.arr.data+i*8):0;
+                (*sp)+=2;
+                break;
+            }
+            case 0x30: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].f=a&&a->data.arr.data&&i>=0&&i<a->data.arr.length?*(f4*)(a->data.arr.data+i*4):0;
+                (*sp)++;
+                break;
+            }
+            case 0x31: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].d=a&&a->data.arr.data&&i>=0&&i<a->data.arr.length?*(f8*)(a->data.arr.data+i*8):0;
+                (*sp)+=2;
+                break;
+            }
+            case 0x32: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].r=NULL;
+                (*sp)++;
+                break;
+            }
+            case 0x33: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].i=a&&a->data.arr.data&&i>=0&&i<a->data.arr.length?(s1)a->data.arr.data[i]:0;
+                (*sp)++;
+                break;
+            }
+            case 0x34: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].i=a&&a->data.arr.data&&i>=0&&i*2+1<a->data.arr.length?(s2)((a->data.arr.data[i*2]<<8)|a->data.arr.data[i*2+1]):0;
+                (*sp)++;
+                break;
+            }
+            case 0x35: {
+                jvm_object *a=frame->stack[*sp-2].r; s4 i=frame->stack[*sp-1].i;
+                (*sp)-=2;
+                frame->stack[*sp].i=a&&a->data.arr.data&&i>=0&&i*2+1<a->data.arr.length?(s2)((a->data.arr.data[i*2]<<8)|a->data.arr.data[i*2+1]):0;
+                (*sp)++;
+                break;
+            }
+
+            case 0xC2: break;
+            case 0xC3: break;
+
+            case 0xAA: {
+                s4 pad = (4 - ((pc - frame->method->code) & 3)) & 3;
+                pc += pad;
+                s4 def = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                s4 low = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                s4 high = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                (*sp)--;
+                s4 key = frame->stack[*sp].i;
+                s4 target = def;
+                if (key >= low && key <= high) {
+                    target = ((pc[(key-low)*4]<<24)|(pc[(key-low)*4+1]<<16)|(pc[(key-low)*4+2]<<8)|pc[(key-low)*4+3]);
+                }
+                pc = frame->method->code + ((pc - frame->method->code) + (high - low + 1) * 4 + target);
+                break;
+            }
+
+            case 0xAB: {
+                s4 pad = (4 - ((pc - frame->method->code) & 3)) & 3;
+                pc += pad;
+                s4 def = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                s4 npairs = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                (*sp)--;
+                s4 key = frame->stack[*sp].i;
+                s4 target = def;
+                for (s4 i = 0; i < npairs; i++) {
+                    s4 mk = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                    s4 mt = ((pc[0]<<24)|(pc[1]<<16)|(pc[2]<<8)|pc[3]); pc+=4;
+                    if (key == mk) { target = mt; break; }
+                }
+                pc = frame->method->code + ((pc - frame->method->code) + target);
+                break;
+            }
+
+            case 0xB9: {
+                u2 idx = (pc[0]<<8)|pc[1]; pc+=2;
+                u1 count = *pc; pc++;
+                pc++;
+                jvm_method *m = resolve_method_cp(cls, idx);
+                if (m) {
+                    s4 nargs = count;
+                    if (m->access_flags & ACC_NATIVE) {
+                        native_method_call(thread, m->class->name?m->class->name:"",
+                            jvm_get_utf8(m->name_index, m->class)?jvm_get_utf8(m->name_index,m->class):"",
+                            jvm_get_utf8(m->desc_index, m->class)?jvm_get_utf8(m->desc_index,m->class):"");
+                    } else if (m->code) {
+                        jvm_frame *new_frame = &thread->frames[thread->frame_count];
+                        memset(new_frame, 0, sizeof(jvm_frame));
+                        new_frame->method = m;
+                        new_frame->pc = m->code;
+                        new_frame->locals = thread->locals + thread->frame_count * m->max_locals;
+                        new_frame->stack = thread->stack + thread->frame_count * m->max_stack;
+                        new_frame->sp = 0;
+                        s4 stack_start = *sp - nargs - 1;
+                        new_frame->this_obj = frame->stack[stack_start].r;
+                        for (s4 i = 0; i < nargs; i++) {
+                            new_frame->locals[i] = frame->stack[stack_start + 1 + i];
+                        }
+                        *sp = stack_start;
+                        thread->frame_count++;
+                        jvm_execute(thread);
+                    }
+                }
+                break;
+            }
+
+            case 0xC5: {
+                u2 idx = (pc[0]<<8)|pc[1]; pc+=2;
+                u1 dims = *pc; pc++;
+                for (s4 i = 0; i < dims; i++) pc += 4;
+                break;
+            }
+
+            case 0xC4: {
+                u1 wide_op = *pc; pc++;
+                if (wide_op == 0x84) {
+                    u2 idx = (pc[0]<<8)|pc[1]; pc+=2;
+                    s2 cnst = (pc[0]<<8)|pc[1]; pc+=2;
+                    frame->locals[idx].i += cnst;
+                } else if (wide_op == 0x15 || wide_op == 0x36) {
+                    u2 idx = (pc[0]<<8)|pc[1]; pc+=2;
+                    if (wide_op == 0x15) { frame->stack[*sp].i = frame->locals[idx].i; (*sp)++; }
+                    else { (*sp)--; frame->locals[idx].i = frame->stack[*sp].i; }
+                }
+                break;
+            }
+
             case 0x2A: frame->stack[*sp].r = frame->this_obj; (*sp)++; break;
             case 0x2B: {
                 jvm_object *obj = frame->this_obj;
@@ -311,7 +570,7 @@ void jvm_execute(jvm_thread *thread) {
             }
 
             case 0x59: frame->stack[*sp] = frame->stack[*sp-1]; frame->stack[*sp].i = frame->stack[*sp-1].i; (*sp)++; break;
-            case 0x5F: {
+            case 0x60: {
                 (*sp)--;
                 (*sp)--;
                 s4 b = frame->stack[*sp+1].i;
@@ -390,35 +649,7 @@ void jvm_execute(jvm_thread *thread) {
                 (*sp)++;
                 break;
             }
-            case 0x7C: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = a | b;
-                (*sp)++;
-                break;
-            }
-            case 0x7E: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = a & b;
-                (*sp)++;
-                break;
-            }
-            case 0x80: {
-                (*sp)--;
-                (*sp)--;
-                s4 b = frame->stack[*sp+1].i;
-                s4 a = frame->stack[*sp].i;
-                frame->stack[*sp].i = a ^ b;
-                (*sp)++;
-                break;
-            }
-
-            case 0x99: {
+            case 0x74: {
                 (*sp)--;
                 s2 offset = (pc[0]<<8)|pc[1]; pc+=2;
                 if (frame->stack[*sp].i == 0) pc = frame->method->code + ((pc - frame->method->code) - 3 + offset);
