@@ -53,9 +53,7 @@ async function run() {
         const noop = () => {};
         const noop0 = () => 0;
         global.Module = {
-            print: (t) => {},
-            printErr: (t) => {},
-            preRun: [], postRun: [],
+            print: noop, printErr: noop, preRun: [], postRun: [],
             js_gl_clear: noop, js_gl_clear_color: noop, js_gl_viewport: noop,
             js_gl_enable: noop, js_gl_disable: noop, js_gl_bind_texture: noop,
             js_gl_gen_textures: noop, js_gl_delete_textures: noop, js_gl_tex_image_2d: noop,
@@ -108,14 +106,19 @@ async function run() {
             js_socket_connect: noop, js_socket_send: noop,
             js_socket_recv: noop0, js_socket_close: noop, js_socket_available: noop0,
             locateFile: (f) => path.join(PUBLIC, f),
-            onRuntimeInitialized: () => {},
         };
 
-        const Module = require(path.join(PUBLIC, 'jvm.js'));
-        const mod = await Module();
-        log('WASM module instantiated OK');
+        const mod = await new Promise((resolve, reject) => {
+            global.Module.onRuntimeInitialized = () => {
+                log('WASM onRuntimeInitialized fired');
+                resolve(global.Module);
+            };
+            try { require(path.join(PUBLIC, 'jvm.js')); } catch(e) { reject(e); }
+        });
 
+        log('WASM module instantiated OK');
         check('_jvm_init exported', typeof mod._jvm_init === 'function');
+        check('_jvm_load_class exported', typeof mod._jvm_load_class === 'function');
         check('_jvm_load_class exported', typeof mod._jvm_load_class === 'function');
         check('_jvm_load_blob exported', typeof mod._jvm_load_blob === 'function');
         check('_jvm_find_class exported', typeof mod._jvm_find_class === 'function');
