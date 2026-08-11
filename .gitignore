@@ -1,7 +1,40 @@
+# Eaglercraft build system (TeaVM + Gradle) for Minecraft 1.16.5 port
+# 
+# To build: ./gradlew target_teavm_wasm_gc:assembleMainComponents
+# Requires JDK 17+
+
+# Ignore large Gradle binaries
+port-1.16/gradle/wrapper/gradle-wrapper.jar
+port-1.16/desktopRuntime/
+
+# Ignore build outputs  
+port-1.16/build/
+port-1.16/target_teavm_wasm_gc/build/
+port-1.16/target_teavm_wasm_gc/javascript/
+port-1.16/target_teavm_wasm_gc/javascript_dist/
+port-1.16/target_teavm_javascript/build/
+port-1.16/target_teavm_javascript/javascript/
+port-1.16/target_lwjgl_desktop/build/
+
+# Keep these
+!port-1.16/build.gradle.kts
+!port-1.16/settings.gradle.kts
+!port-1.16/gradle.properties
+!port-1.16/gradle/libs.versions.toml
+!port-1.16/gradle/wrapper/gradle-wrapper.properties
+!port-1.16/gradle/local-libs/
+
+# Ignore game resources (too large, use EPK instead)
+port-1.16/src/resources/
+
+# Old files
+public/js/
+public/jvm.js
+public/jvm.wasm
+public/minecraft.blob
+jvm/
+test/
+Makefile
+scripts/
+README.md
 *.o
-*.wasm
-/public/jvm.js
-/public/jvm.wasm
-/node_modules
-.DS_Store
-Thumbs.db
