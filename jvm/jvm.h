@@ -5,14 +5,14 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#define JVM_STACK_SIZE     (1024 * 1024)
-#define JVM_HEAP_SIZE      (256 * 1024 * 1024)
-#define JVM_MAX_THREADS    64
+#define JVM_STACK_SIZE     (16 * 1024)
+#define JVM_HEAP_SIZE      (128 * 1024 * 1024)
+#define JVM_MAX_THREADS    8
 #define JVM_MAX_CLASSES    32768
 #define JVM_MAX_FIELDS     65536
 #define JVM_MAX_METHODS    131072
 #define JVM_MAX_STRING     65536
-#define JVM_MAX_FRAMES     1024
+#define JVM_MAX_FRAMES     256
 
 #define ACC_PUBLIC       0x0001
 #define ACC_PRIVATE      0x0002
