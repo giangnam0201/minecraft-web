@@ -43,11 +43,16 @@ jobs:
           echo "=== Checking exports ==="
           grep -c 'jvm_init\|jvm_load_blob\|jvm_find_class' public/jvm.js || echo "exports check done"
 
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: ./public
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload artifact
-        id: upload
+      - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./public
@@ -58,17 +63,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download artifact
+      - name: Download build
         uses: actions/download-artifact@v4
         with:
-          name: github-pages
+          name: build-output
           path: ./public
 
-      - name: List downloaded files
-        run: |
-          echo "=== Downloaded files ==="
-          find ./public -type f | head -30
-          echo "=== ==="
+      - name: List files
+        run: find ./public -type f | head -20
 
       - name: Setup Node
         uses: actions/setup-node@v4
