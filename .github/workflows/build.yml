@@ -64,6 +64,12 @@ jobs:
           name: github-pages
           path: ./public
 
+      - name: List downloaded files
+        run: |
+          echo "=== Downloaded files ==="
+          find ./public -type f | head -30
+          echo "=== ==="
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

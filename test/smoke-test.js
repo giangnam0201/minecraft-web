@@ -19,6 +19,9 @@ async function run() {
     console.log('=== Minecraft Web Smoke Test ===\n');
 
     console.log('-- Build outputs --');
+    log('CWD: ' + process.cwd());
+    log('PUBLIC dir: ' + PUBLIC);
+    try { log('PUBLIC contents: ' + fs.readdirSync(PUBLIC).join(', ')); } catch(e) { log('PUBLIC read error: ' + e.message); }
     const files = fs.readdirSync(PUBLIC);
     check('index.html exists', fs.existsSync(path.join(PUBLIC, 'index.html')));
     check('jvm.js exists', fs.existsSync(path.join(PUBLIC, 'jvm.js')));
