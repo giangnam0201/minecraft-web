@@ -69,7 +69,7 @@ body{
             jvm_load_class(ptr,data.length);
             Module._free(ptr);
             document.getElementById('loader').style.display='none';
-            if(window.startGameLoop)window.startGameLoop();
+            if(window.runMinecraftMain)window.runMinecraftMain();
         }
     });
 })();

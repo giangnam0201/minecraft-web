@@ -6,22 +6,19 @@ import { networkManager } from './network.js';
 const MC_JAR_URL = 'https://piston-data.mojang.com/v1/objects/37fd3c903861eeff3bc24b71eed48f828b5269c8/client.jar';
 
 const Module = window.Module || {};
-Module.preRun = [];
-Module.postRun = [];
 Module.print = (t) => console.log('[JVM]', t);
 Module.printErr = (t) => console.error('[JVM]', t);
-
 const jarResources = new Map();
-let allClassData = [];
 let jarBytes = null;
+let jvmRunning = false;
 
 function ptrToStr(p) { return Module.UTF8ToString ? Module.UTF8ToString(p) : ''; }
 function setI32(p, v) { if (Module.setValue) Module.setValue(p, v, 'i32'); }
 function getI32(p) { return Module.getValue ? Module.getValue(p, 'i32') : 0; }
 function getF32(p) { return Module.getValue ? Module.getValue(p, 'float') : 0; }
-function setF32(p, v) { if (Module.setValue) Module.setValue(p, v, 'float'); }
 
-Module.js_gl_clear = (mask) => renderer.clear(mask);
+// --- GL bridge ---
+Module.js_gl_clear = (m) => renderer.clear(m);
 Module.js_gl_clear_color = (r,g,b,a) => renderer.clearColor(r,g,b,a);
 Module.js_gl_clear_depth = (d) => renderer.clearDepth(d);
 Module.js_gl_clear_stencil = (s) => renderer.clearStencil(s);
@@ -114,11 +111,11 @@ Module.js_gl_gen_framebuffers = (n,p) => renderer.genFramebuffers(n,p);
 Module.js_gl_delete_framebuffers = (n,p) => renderer.deleteFramebuffers(n,p);
 Module.js_gl_framebuffer_texture2d = (t,a,tt,tx,l) => renderer.framebufferTexture2D(t,a,tt,tx,l);
 Module.js_gl_check_framebuffer_status = (t) => renderer.checkFramebufferStatus(t);
-Module.js_fogf = (p,v) => { if(p===0x0B62)renderer.fogDensity=v; else if(p===0x0B63)renderer.fogStart=v; else if(p===0x0B64)renderer.fogEnd=v; };
-Module.js_fogi = (p,v) => { if(p===0x0B65)renderer.fogMode=v; };
-Module.js_fogfv = (p,v) => { if(p===0x0B66){ const ptr=v; renderer.fogColor=[getF32(ptr),getF32(ptr+4),getF32(ptr+8),getF32(ptr+12)]; } };
-Module.js_swap_buffers = () => renderer.swapBuffers();
-Module.js_is_close_requested = () => renderer.isCloseRequested()?1:0;
+Module.js_fogf = (p,v) => { if(p===0xB62)renderer.fogDensity=v; else if(p===0xB63)renderer.fogStart=v; else if(p===0xB64)renderer.fogEnd=v; };
+Module.js_fogi = (p,v) => { if(p===0xB65)renderer.fogMode=v; };
+Module.js_fogfv = (p,v) => { if(p===0xB66){ renderer.fogColor=[getF32(v),getF32(v+4),getF32(v+8),getF32(v+12)]; } };
+Module.js_swap_buffers = () => {};
+Module.js_is_close_requested = () => 0;
 Module.js_create_window = (w,h,p) => renderer.createWindow(w,h,ptrToStr(p));
 Module.js_set_display_mode = (w,h) => renderer.setDisplayMode(w,h);
 Module.js_get_key_state = (k) => inputManager.isKeyDown(k);
@@ -151,42 +148,33 @@ Module.js_socket_available = () => networkManager.available();
 Module.js_log = (m) => console.log('[JVM]',ptrToStr(m));
 Module.js_log_int = (v) => console.log('[JVM]',v);
 Module.js_current_time_millis = () => performance.now();
-
-Module.js_resource_exists = (pathPtr) => {
-    const path = ptrToStr(pathPtr);
-    return jarResources.has(path) ? 1 : 0;
-};
-Module.js_resource_read = (pathPtr, bufPtr, maxLen) => {
-    const path = ptrToStr(pathPtr);
-    const data = jarResources.get(path);
-    if (!data) return 0;
-    const len = Math.min(data.length, maxLen);
-    Module.HEAPU8.set(data.subarray(0, len), bufPtr);
-    return len;
-};
-Module.js_resource_size = (pathPtr) => {
-    const path = ptrToStr(pathPtr);
-    const data = jarResources.get(path);
-    return data ? data.length : -1;
-};
+Module.js_resource_exists = (p) => jarResources.has(ptrToStr(p)) ? 1 : 0;
+Module.js_resource_read = (p, b, m) => { const d=jarResources.get(ptrToStr(p)); if(!d)return 0; const l=Math.min(d.length,m); Module.HEAPU8.set(d.subarray(0,l),b); return l; };
+Module.js_resource_size = (p) => { const d=jarResources.get(ptrToStr(p)); return d?d.length:-1; };
 
 window.Module = Module;
-window.jarResources = jarResources;
 
+// --- init ---
 Module.onRuntimeInitialized = () => {
-    console.log('WASM JVM initialised. Fetching Minecraft JAR...');
-    document.getElementById('status').textContent = 'JVM ready. Downloading Minecraft 1.16.5...';
-    document.getElementById('status-percent').textContent = '';
+    console.log('WASM JVM initialised');
+    document.getElementById('status').textContent = 'JVM ready. Click anywhere to start downloading Minecraft...';
+    document.getElementById('loader').style.cursor = 'pointer';
+    document.getElementById('loader').onclick = startEverything;
+};
+
+function startEverything() {
+    document.getElementById('loader').onclick = null;
+    document.getElementById('loader').style.cursor = 'default';
     const jvm_init = Module.cwrap('jvm_init', null, []);
     jvm_init();
     fetchMinecraftJar();
-};
+}
 
 async function fetchMinecraftJar() {
     try {
         const status = document.getElementById('status');
         const percent = document.getElementById('status-percent');
-        status.textContent = 'Downloading Minecraft 1.16.5 client...';
+        status.textContent = 'Downloading Minecraft 1.16.5...';
         const resp = await fetch(MC_JAR_URL);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const total = parseInt(resp.headers.get('content-length') || '0');
@@ -198,7 +186,7 @@ async function fetchMinecraftJar() {
             if (done) break;
             chunks.push(value);
             received += value.length;
-            if (total > 0) { percent.textContent = Math.round((received / total) * 100) + '%'; }
+            if (total > 0) percent.textContent = Math.round((received / total) * 100) + '%';
         }
         jarBytes = new Uint8Array(received);
         let pos = 0;
@@ -206,11 +194,6 @@ async function fetchMinecraftJar() {
         status.textContent = 'Parsing JAR...';
         percent.textContent = '';
         await parseJarAndLoadClasses(jarBytes);
-        status.textContent = 'Starting Minecraft...';
-        setTimeout(() => {
-            document.getElementById('loader').style.display = 'none';
-            startGameLoop();
-        }, 500);
     } catch (e) {
         document.getElementById('status').textContent = 'Download failed: ' + e.message;
         console.error(e);
@@ -218,27 +201,35 @@ async function fetchMinecraftJar() {
     }
 }
 
-async function inflateRaw(compressed) {
-    try {
-        const ds = new DecompressionStream('deflate-raw');
-        const writer = ds.writable.getWriter();
-        const reader = ds.readable.getReader();
-        writer.write(compressed);
-        writer.close();
-        const chunks = [];
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-        }
-        const total = chunks.reduce((s, c) => s + c.length, 0);
-        const result = new Uint8Array(total);
-        let off = 0;
-        for (const c of chunks) { result.set(c, off); off += c.length; }
-        return result;
-    } catch (e) {
-        return null;
+async function inflateZIP(compressed) {
+    for (const fmt of ['deflate', 'deflate-raw']) {
+        try {
+            const ds = new DecompressionStream(fmt);
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(compressed);
+            writer.close();
+            const chunks = [];
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+            }
+            const total = chunks.reduce((s, c) => s + c.length, 0);
+            const result = new Uint8Array(total);
+            let off = 0;
+            for (const c of chunks) { result.set(c, off); off += c.length; }
+            return result;
+        } catch (e) {}
     }
+    return null;
+}
+
+function findNextLocalHeader(data, start) {
+    for (let i = start; i < data.length - 4; i++) {
+        if (data[i] === 0x50 && data[i+1] === 0x4B && data[i+2] === 0x03 && data[i+3] === 0x04) return i;
+    }
+    return data.length;
 }
 
 async function parseJarAndLoadClasses(data) {
@@ -251,62 +242,97 @@ async function parseJarAndLoadClasses(data) {
     const percent = document.getElementById('status-percent');
 
     while (pos < data.length - 30) {
-        const sig = view.getUint32(pos, true);
-        if (sig !== 0x04034b50) { pos++; continue; }
+        if (view.getUint32(pos, true) !== 0x04034b50) { pos++; continue; }
+        const flags = view.getUint16(pos + 6, true);
         const comp = view.getUint16(pos + 8, true);
-        const compSize = view.getUint32(pos + 18, true);
-        const uncompSize = view.getUint32(pos + 22, true);
+        let compSize = view.getUint32(pos + 18, true);
+        let uncompSize = view.getUint32(pos + 22, true);
         const nameLen = view.getUint16(pos + 26, true);
         const extraLen = view.getUint16(pos + 28, true);
         const name = new TextDecoder().decode(data.subarray(pos + 30, pos + 30 + nameLen));
         const fileStart = pos + 30 + nameLen + extraLen;
-        if (name.endsWith('.class')) {
-            let classData;
-            if (comp === 0) {
-                classData = data.subarray(fileStart, fileStart + uncompSize);
-            } else {
-                const compressed = data.subarray(fileStart, fileStart + compSize);
-                classData = await inflateRaw(new Uint8Array(compressed));
-                if (!classData) { pos = fileStart + compSize; continue; }
-            }
-            const ptr = Module._malloc(classData.length);
-            Module.HEAPU8.set(classData, ptr);
-            jvm_load_class(ptr, classData.length);
-            Module._free(ptr);
-            classCount++;
-        } else if (!name.endsWith('/') && !name.startsWith('META-INF')) {
+
+        if ((flags & 0x0008) && compSize === 0) {
+            const nextHeader = findNextLocalHeader(data, fileStart);
+            compSize = nextHeader - fileStart;
+            if (compSize <= 0) { pos = nextHeader; continue; }
+        }
+
+        const isClass = name.endsWith('.class');
+        const isResource = !name.endsWith('/') && !name.startsWith('META-INF');
+
+        if (isClass || isResource) {
             let fileData;
             if (comp === 0) {
                 fileData = data.subarray(fileStart, fileStart + uncompSize);
             } else {
-                const compressed = data.subarray(fileStart, fileStart + compSize);
-                fileData = await inflateRaw(new Uint8Array(compressed));
+                const raw = data.subarray(fileStart, fileStart + compSize);
+                fileData = await inflateZIP(new Uint8Array(raw));
                 if (!fileData) { pos = fileStart + compSize; continue; }
             }
-            jarResources.set(name, fileData);
-            resourceCount++;
+
+            if (isClass) {
+                const ptr = Module._malloc(fileData.length);
+                Module.HEAPU8.set(fileData, ptr);
+                jvm_load_class(ptr, fileData.length);
+                Module._free(ptr);
+                classCount++;
+            } else if (isResource) {
+                jarResources.set(name, fileData);
+                resourceCount++;
+            }
         }
+
         pos = fileStart + (comp > 0 ? compSize : uncompSize);
         if (classCount % 100 === 0) {
-            status.textContent = 'Loading classes: ' + classCount + '...';
+            status.textContent = 'Loading: ' + classCount + ' classes...';
             percent.textContent = resourceCount + ' resources';
             await new Promise(r => setTimeout(r, 0));
         }
     }
-    status.textContent = 'Loaded ' + classCount + ' classes, ' + resourceCount + ' resources';
-    percent.textContent = '';
-}
 
-function startGameLoop() {
+    status.textContent = 'Loaded ' + classCount + ' classes, ' + resourceCount + ' resources. Starting Minecraft...';
+    percent.textContent = '';
+
+    document.getElementById('loader').style.display = 'none';
     renderer.init();
     audioManager.init();
-    const loop = () => {
-        inputManager.poll();
-        renderer.clear(0x4000 | 0x100);
-        renderer.swapBuffers();
-        requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
+
+    runMinecraftMain();
 }
 
-window.startGameLoop = startGameLoop;
+function runMinecraftMain() {
+    console.log('Looking for net/minecraft/client/main/Main...');
+    const jvm_find_class = Module.cwrap('jvm_find_class', 'number', ['string']);
+    const jvm_invoke_static = Module.cwrap('jvm_invoke_static', null, ['number', 'string', 'string']);
+
+    const mainClassPtr = jvm_find_class('net/minecraft/client/main/Main');
+    console.log('Main class pointer:', mainClassPtr);
+
+    if (mainClassPtr) {
+        console.log('Invoking Main.main([String])...');
+        try {
+            jvm_invoke_static(mainClassPtr, 'main', '([Ljava/lang/String;)V');
+        } catch (e) {
+            console.error('JVM execution error:', e);
+        }
+    } else {
+        console.log('Main class not found, trying alternate names...');
+        const alts = [
+            'net/minecraft/client/Minecraft',
+            'net/minecraft/client/main/Main',
+            'net/minecraft/bundler/Main',
+        ];
+        for (const alt of alts) {
+            const p = jvm_find_class(alt);
+            if (p) {
+                console.log('Found:', alt);
+                jvm_invoke_static(p, 'main', '([Ljava/lang/String;)V');
+                return;
+            }
+        }
+        console.error('Could not find Minecraft main class');
+    }
+}
+
+window.runMinecraftMain = runMinecraftMain;
