@@ -1,144 +1,122 @@
-const { chromium } = require('playwright');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PUBLIC_DIR = path.resolve(__dirname, '..', 'public');
-const PORT = 8765;
-const RESULTS = [];
+const PUBLIC = path.resolve(__dirname, '..', 'public');
+const PASS = '✓', FAIL = '✗';
+let passed = 0, failed = 0;
 
-function log(msg) {
-    const line = `[${new Date().toISOString()}] ${msg}`;
-    console.log(line);
-    RESULTS.push(line);
+function check(name, condition) {
+    if (condition) { console.log(`  ${PASS} ${name}`); passed++; }
+    else { console.log(`  ${FAIL} ${name}`); failed++; }
 }
-
-const MIME = {
-    '.html': 'text/html',
-    '.js': 'application/javascript',
-    '.wasm': 'application/wasm',
-    '.css': 'text/css',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.json': 'application/json',
-    '.ico': 'image/x-icon',
-};
-
-const server = http.createServer((req, res) => {
-    let filePath = path.join(PUBLIC_DIR, req.url === '/' ? '/index.html' : req.url.split('?')[0]);
-    const ext = path.extname(filePath).toLowerCase();
-    const ct = MIME[ext] || 'application/octet-stream';
-
-    try {
-        const data = fs.readFileSync(filePath);
-        res.writeHead(200, {
-            'Content-Type': ct,
-            'Access-Control-Allow-Origin': '*',
-            'Cross-Origin-Opener-Policy': 'same-origin',
-            'Cross-Origin-Embedder-Policy': 'require-corp',
-        });
-        res.end(data);
-    } catch (e) {
-        res.writeHead(404);
-        res.end('Not found');
-    }
-});
 
 async function run() {
-    server.listen(PORT);
-    log(`Server started on http://localhost:${PORT}`);
+    console.log('=== Minecraft Web Smoke Test ===\n');
 
-    const browser = await chromium.launch({ headless: true });
-    const page = await browser.newPage();
-    const consoleLogs = [];
+    console.log('-- Build outputs --');
+    const files = fs.readdirSync(PUBLIC);
+    check('public/ exists', files.length > 0);
+    check('index.html exists', fs.existsSync(path.join(PUBLIC, 'index.html')));
+    check('jvm.js exists', fs.existsSync(path.join(PUBLIC, 'jvm.js')));
+    check('jvm.wasm exists', fs.existsSync(path.join(PUBLIC, 'jvm.wasm')));
 
-    page.on('console', msg => {
-        const text = msg.text();
-        consoleLogs.push(`[${msg.type()}] ${text}`);
-        if (text.includes('[JVM]') || text.includes('Error') || text.includes('error') || text.includes('Loaded')) {
-            log(`CONSOLE: ${text}`);
-        }
-    });
+    const wasmSize = fs.statSync(path.join(PUBLIC, 'jvm.wasm')).size;
+    check(`jvm.wasm > 10KB (${(wasmSize/1024).toFixed(1)} KB)`, wasmSize > 10240);
 
-    page.on('pageerror', err => {
-        log(`PAGE ERROR: ${err.message}`);
-    });
+    const jsContent = fs.readFileSync(path.join(PUBLIC, 'jvm.js'), 'utf8');
+    check('jvm.js exports jvm_init', jsContent.includes('jvm_init'));
+    check('jvm.js exports jvm_load_blob', jsContent.includes('jvm_load_blob'));
+    check('jvm.js exports jvm_find_class', jsContent.includes('jvm_find_class'));
 
+    console.log('\n-- JS modules --');
+    check('packer.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'packer.js')));
+    check('renderer.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'renderer.js')));
+    check('main.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'main.js')));
+    check('audio.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'audio.js')));
+    check('input.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'input.js')));
+    check('network.js exists', fs.existsSync(path.join(PUBLIC, 'js', 'network.js')));
+
+    console.log('\n-- HTML validation --');
+    const html = fs.readFileSync(path.join(PUBLIC, 'index.html'), 'utf8');
+    check('HTML has game-canvas', html.includes('game-canvas'));
+    check('HTML has loader', html.includes('id="loader"'));
+    check('HTML has status', html.includes('id="status"'));
+    check('HTML loads jvm.js', html.includes('jvm.js'));
+    check('HTML loads main.js', html.includes('main.js'));
+
+    console.log('\n-- WASM JVM test (Node.js) --');
     try {
-        log('Loading page...');
-        await page.goto(`http://localhost:${PORT}`, { waitUntil: 'networkidle', timeout: 30000 });
-        await page.screenshot({ path: 'initial-load.png' });
-        log('Page loaded, screenshot saved');
+        const Module = require(path.join(PUBLIC, 'jvm.js'));
+        const mod = await Module();
 
-        const title = await page.title();
-        log(`Title: ${title}`);
+        check('Module factory returned', !!mod);
+        check('_jvm_init exported', typeof mod._jvm_init === 'function');
+        check('_jvm_load_class exported', typeof mod._jvm_load_class === 'function');
+        check('_jvm_load_blob exported', typeof mod._jvm_load_blob === 'function');
+        check('_jvm_find_class exported', typeof mod._jvm_find_class === 'function');
+        check('_jvm_invoke_static exported', typeof mod._jvm_invoke_static === 'function');
+        check('_malloc exported', typeof mod._malloc === 'function');
+        check('_free exported', typeof mod._free === 'function');
 
-        const canvas = await page.$('#game-canvas');
-        log(`Canvas found: ${!!canvas}`);
+        mod._jvm_init();
 
-        const status = await page.$eval('#status', el => el.textContent).catch(() => 'N/A');
-        log(`Status: ${status}`);
+        // Build a minimal class: public class Test {}
+        // Magic: CAFEBABE, version 52.0, flags: ACC_PUBLIC|ACC_SUPER
+        const classBytes = new Uint8Array([
+            0xCA,0xFE,0xBA,0xBE, 0x00,0x00,0x00,0x34, // magic + version 52
+            0x00,0x0A, // cp_count = 10
+            0x07,0x00,0x02, // #1 Class[#2]
+            0x01,0x00,0x04,0x54,0x65,0x73,0x74, // #2 Utf8 "Test"
+            0x07,0x00,0x04, // #3 Class[#4]
+            0x01,0x00,0x10,0x6A,0x61,0x76,0x61,0x2F,0x6C,0x61,0x6E,0x67,0x2F,0x4F,0x62,0x6A,0x65,0x63,0x74, // #4 Utf8 "java/lang/Object"
+            0x01,0x00,0x04,0x43,0x6F,0x64,0x65, // #5 Utf8 "Code"
+            0x01,0x00,0x06,0x3C,0x69,0x6E,0x69,0x74,0x3E, // #6 Utf8 "<init>"
+            0x01,0x00,0x03,0x28,0x29,0x56, // #7 Utf8 "()V"
+            0x01,0x00,0x0F,0x4C,0x69,0x6E,0x65,0x4E,0x75,0x6D,0x62,0x65,0x72,0x54,0x61,0x62,0x6C,0x65, // #8 Utf8 "LineNumberTable"
+            0x01,0x00,0x04,0x6D,0x61,0x69,0x6E, // #9 Utf8 "main"
+            0x00,0x21, // access_flags: ACC_PUBLIC|ACC_SUPER
+            0x00,0x01, // this_class #1
+            0x00,0x03, // super_class #3
+            0x00,0x00, // interfaces_count = 0
+            0x00,0x00, // fields_count = 0
+            0x00,0x01, // methods_count = 1
+            0x00,0x01, // method access: ACC_PUBLIC
+            0x00,0x06, // name_index: <init>
+            0x00,0x07, // desc_index: ()V
+            0x00,0x01, // attr_count = 1
+            0x00,0x05, // attr_name: Code
+            0x00,0x00,0x00,0x11, // attr_len
+            0x00,0x01, // max_stack
+            0x00,0x01, // max_locals
+            0x00,0x00,0x00,0x05, // code_len = 5
+            0x2A,0xB7,0x00,0x01,0xB1, // aload_0, invokespecial #1, return
+            0x00,0x00, // exc_table_len = 0
+            0x00,0x00, // attr_count = 0
+            0x00,0x00, // class attr_count
+        ]);
 
-        await page.waitForFunction(() => {
-            return document.getElementById('status').textContent.includes('JVM ready');
-        }, { timeout: 30000 }).catch(() => {
-            log('Timeout waiting for JVM ready');
-        });
+        const ptr = mod._malloc(classBytes.length);
+        mod.HEAPU8.set(classBytes, ptr);
+        const idx = mod._jvm_load_class(ptr, classBytes.length);
+        mod._free(ptr);
 
-        const status2 = await page.$eval('#status', el => el.textContent).catch(() => 'N/A');
-        log(`Status after wait: ${status2}`);
+        check('Class loaded successfully (idx >= 0)', idx >= 0);
+        check('JVM class count > 0', mod._jvm_cls_cnt > 0);
 
-        const loader = await page.$('#loader');
-        if (loader) {
-            await loader.click();
-            log('Clicked loader to start');
-        }
+        const clsPtr = mod._jvm_find_class(mod.stringToUTF8('Test', 100, 0));
+        check('jvm_find_class("Test") returns pointer', clsPtr !== 0);
 
-        await page.waitForTimeout(3000);
-
-        const status3 = await page.$eval('#status', el => el.textContent).catch(() => 'N/A');
-        log(`Status after click: ${status3}`);
-
-        await page.waitForFunction(() => {
-            const s = document.getElementById('status').textContent;
-            return s.includes('Loaded') || s.includes('Starting') || s.includes('Error') || s.includes('failed');
-        }, { timeout: 120000 }).catch(() => {
-            log('Timeout waiting for class loading');
-            page.screenshot({ path: 'timeout.png' });
-        });
-
-        const status4 = await page.$eval('#status', el => el.textContent).catch(() => 'N/A');
-        log(`Final status: ${status4}`);
-
-        await page.screenshot({ path: 'final-state.png' });
-
-        const checks = [];
-        checks.push({ name: 'WASM module loaded', pass: consoleLogs.some(l => l.includes('WASM JVM')) });
-        checks.push({ name: 'JVM init called', pass: consoleLogs.some(l => l.includes('initialised') || l.includes('initialized')) });
-        checks.push({ name: 'JAR download started', pass: consoleLogs.some(l => l.includes('Downloading') || status4.includes('Loading')) });
-        checks.push({ name: 'Canvas exists', pass: !!canvas });
-        checks.push({ name: 'Status element works', pass: status.length > 0 });
-
-        log('');
-        log('=== CHECK RESULTS ===');
-        let allPass = true;
-        for (const c of checks) {
-            log(`${c.pass ? 'PASS' : 'FAIL'}: ${c.name}`);
-            if (!c.pass) allPass = false;
-        }
-
-        fs.writeFileSync('result.txt', RESULTS.join('\n') + '\n\n' + JSON.stringify(checks, null, 2));
-        log(`Overall: ${allPass ? 'ALL PASSED' : 'SOME FAILED'}`);
-
+        console.log(`\n  Class index: ${idx}, class count: ${mod._jvm_cls_cnt}`);
     } catch (e) {
-        log(`FATAL: ${e.message}`);
-        await page.screenshot({ path: 'error.png' }).catch(() => {});
-        fs.writeFileSync('result.txt', RESULTS.join('\n'));
-    } finally {
-        await browser.close();
-        server.close();
-        process.exit(0);
+        console.log(`  ${FAIL} WASM test crashed: ${e.message}`);
+        failed++;
     }
+
+    console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
+    process.exit(failed > 0 ? 1 : 0);
 }
 
-run();
+run().catch(e => {
+    console.error('Test crashed:', e);
+    process.exit(1);
+});
