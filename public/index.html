@@ -129,7 +129,7 @@ Module.js_socket_recv=noop0; Module.js_socket_close=noop; Module.js_socket_avail
             jvm_load_class(ptr,data.length);
             Module._free(ptr);
             document.getElementById('loader').style.display='none';
-            if(window.runMinecraftMain)window.runMinecraftMain();
+            if(window.boot)window.boot();
         }
     });
 })();

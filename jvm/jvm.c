@@ -6,8 +6,7 @@ jvm_thread jvm_threads[JVM_MAX_THREADS];
 jvm_thread *jvm_cur;
 jvm_class *jvm_classes[JVM_MAX_CLASSES];
 s4 jvm_cls_cnt;
-static u1 heap_storage[JVM_HEAP_SIZE];
-u1 *jvm_heap = heap_storage;
+u1 *jvm_heap = NULL;
 
 typedef struct { char *key; s4 idx; } hash_entry;
 static hash_entry hash_table[JVM_HASH_SIZE];
@@ -97,12 +96,13 @@ s4 jvm_load_class(u1 *data, s4 len) {
     if (read_u4(&p) != 0xCAFEBABE) return -1;
 
     jvm_class *c = calloc(1, sizeof(jvm_class));
-    c->data = data; c->data_len = len;
+    c->data = NULL; c->data_len = 0;
     c->index = jvm_cls_cnt;
 
     c->minor_ver = read_u2(&p); c->major_ver = read_u2(&p);
-    c->cp_count = read_u2(&p); c->cp_raw = p;
-
+    c->cp_count = read_u2(&p);
+    // Copy only the constant pool, not the entire class file
+    u1 *cp_start = p;
     for (u2 i = 1; i < c->cp_count; i++) {
         u1 tag = read_u1(&p);
         switch (tag) {
@@ -117,6 +117,9 @@ s4 jvm_load_class(u1 *data, s4 len) {
             default: break;
         }
     }
+    s4 cp_size = p - cp_start;
+    c->cp_raw = malloc(cp_size);
+    memcpy(c->cp_raw, cp_start, cp_size);
 
     c->access_flags = read_u2(&p);
     c->this_class = read_u2(&p);
@@ -345,9 +348,8 @@ void jvm_push_r(jvm_thread *t, jvm_object *r) { jvm_frame *f=&t->frames[t->frame
 void jvm_resolve_methods(jvm_class *c) { (void)c; }
 
 void jvm_init(void) {
-    memset(heap_storage, 0, JVM_HEAP_SIZE);
     memset(hash_table, 0, sizeof(hash_table));
-    jvm_cls_cnt = 0; str_table = NULL;
+    jvm_cls_cnt = 0; str_table = NULL; jvm_heap = NULL;
     memset(jvm_threads, 0, sizeof(jvm_threads));
     jvm_threads[0].id = 0;
     jvm_cur = &jvm_threads[0];

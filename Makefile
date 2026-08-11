@@ -3,8 +3,8 @@ EMCC_FLAGS = -O2 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
              -s EXPORTED_FUNCTIONS='["_jvm_init","_jvm_load_class","_jvm_load_blob","_jvm_find_class","_jvm_invoke_static","_malloc","_free"]' \
              -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","getValue","setValue","UTF8ToString","stringToUTF8","lengthBytesUTF8"]' \
              -s NO_EXIT_RUNTIME=1 \
-             -s INITIAL_MEMORY=134217728 \
-             -s STACK_SIZE=2097152 \
+             -s INITIAL_MEMORY=33554432 \
+             -s STACK_SIZE=5242880 \
              -s MAXIMUM_MEMORY=268435456 \
              -s ERROR_ON_UNDEFINED_SYMBOLS=0
 

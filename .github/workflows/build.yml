@@ -32,16 +32,14 @@ jobs:
       - name: Build WASM JVM
         run: make all
 
-      - name: Verify build outputs
+      - name: Build Minecraft Blob (pre-extract JAR)
+        run: node scripts/build-blob.js
+
+      - name: Verify outputs
         run: |
-          echo "=== Built files ==="
-          ls -la public/
-          ls -la public/js/ 2>/dev/null || true
-          echo "=== WASM size ==="
-          wc -c public/jvm.wasm 2>/dev/null || echo "no wasm"
-          wc -c public/jvm.js 2>/dev/null || echo "no jvm.js"
-          echo "=== Checking exports ==="
-          grep -c 'jvm_init\|jvm_load_blob\|jvm_find_class' public/jvm.js || echo "exports check done"
+          ls -lh public/jvm.js public/jvm.wasm public/minecraft.blob 2>/dev/null || true
+          echo "Blob size:"
+          wc -c public/minecraft.blob 2>/dev/null || echo "no blob"
 
       - name: Upload test artifact
         uses: actions/upload-artifact@v4

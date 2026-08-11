@@ -6,7 +6,6 @@
 #include <stdbool.h>
 
 #define JVM_STACK_SIZE     (16 * 1024)
-#define JVM_HEAP_SIZE      (64 * 1024 * 1024)
 #define JVM_MAX_THREADS    4
 #define JVM_MAX_CLASSES    16384
 #define JVM_HASH_SIZE      32768
