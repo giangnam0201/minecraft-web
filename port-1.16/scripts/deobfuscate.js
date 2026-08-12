@@ -12,6 +12,10 @@ const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
+    // Unmapped obfuscated classes that appear only in descriptors
+    "bfw": "net/minecraft/world/entity/player/Player",
+    "afd": "net/minecraft/util/GsonHelper",
+    "l": "net/minecraft/CrashReport",
 };
 
 function download(url) {
