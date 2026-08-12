@@ -51,9 +51,9 @@ function rebuildClass(buf, classMap) {
 
     const cpCount = buf.readUInt16BE(8);
     const renames = new Map();
-    // Always include REPLACE_MAP entries
-    for (const [k, v] of Object.entries(REPLACE_MAP)) {
-        renames.set(k, v);
+    // ALWAYS include all classMap entries for unconditional replacement
+    for (const [k, v] of Object.entries(classMap)) {
+        if (v !== k) renames.set(k, v);
     }
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
