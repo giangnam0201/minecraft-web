@@ -47,7 +47,8 @@ function parseMappings(text) {
 
 function rebuildClass(buf, classMap) {
     let patches = 0;
-    if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
+    // Skip patching for now - just copy through
+    return { buf, patches: 0 };
 
     const cpCount = buf.readUInt16BE(8);
     const renames = new Map();
