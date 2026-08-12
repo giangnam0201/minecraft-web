@@ -36,8 +36,9 @@ jobs:
 
       - name: Compile java.net stubs (release 8 bypass modules)
         run: |
-          mkdir -p port-1.16/libs/prebuilt
-          javac --release 8 -d port-1.16/libs/prebuilt port-1.16/src/stubs/java/java/net/Proxy.java port-1.16/src/stubs/java/java/net/Authenticator.java
+          mkdir -p port-1.16/libs/prebuilt/java/net
+          cd port-1.16/prebuild
+          javac --release 8 -d ../libs/prebuilt Proxy.java Authenticator.java
 
       - name: Deobfuscate 1.16.5 JAR
         run: node port-1.16/scripts/deobfuscate.js
