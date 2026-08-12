@@ -8,7 +8,6 @@ const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
 const REPLACE_MAP = {
-    "java/net/Proxy": "org/eag/Proxy",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
     "l": "net/minecraft/CrashReport",
@@ -178,6 +177,25 @@ async function main() {
     }
 
     console.log(`   ${renamed} renamed, ${skipped} passthrough, ${GLOBAL_PATCHES} CP patches`);
+
+    // Add prebuilt java.net stub classes directly to JAR
+    const prebuiltDir = path.resolve(__dirname, '..', 'libs', 'prebuilt');
+    if (fs.existsSync(prebuiltDir)) {
+        function addDir(dir, prefix) {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                const entryName = prefix + entry.name;
+                if (entry.isDirectory()) {
+                    addDir(full, entryName + '/');
+                } else {
+                    newZip.addFile(entryName, fs.readFileSync(full));
+                }
+            }
+        }
+        addDir(prebuiltDir, '');
+        console.log('   Added prebuilt classes to JAR');
+    }
+
     console.log('5. Writing output...');
     fs.mkdirSync(OUT_DIR, { recursive: true });
     newZip.writeZip(OUT_JAR);
