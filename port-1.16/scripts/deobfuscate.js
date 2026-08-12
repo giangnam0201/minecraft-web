@@ -85,12 +85,23 @@ function rebuildClass(buf, classMap) {
                 let str = buf.toString('utf8', pos, pos + len);
                 for (const oldStr of sortedKeys) {
                     const newStr = renames.get(oldStr);
-                    const escapedKey = oldStr.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
-                    const regex = new RegExp('(?<![a-zA-Z0-9_])' + escapedKey + '(?![a-zA-Z0-9_])', 'g');
-                    str = str.replace(regex, newStr);
-                    // Also replace in descriptors: Lclassname;
-                    const descRegex = new RegExp('L' + escapedKey + ';', 'g');
-                    str = str.replace(descRegex, 'L' + newStr + ';');
+                    // Replace ALL occurrences - brute force byte replacement
+                    const oldBuf = Buffer.from(oldStr, 'utf8');
+                    const newBuf = Buffer.from(newStr, 'utf8');
+                    let idx = 0;
+                    while ((idx = str.indexOf(oldStr, idx)) !== -1) {
+                        // Check if surrounded by non-identifier chars (avoid partial matches)
+                        const before = idx > 0 ? str.charCodeAt(idx - 1) : 0;
+                        const after = idx + oldStr.length < str.length ? str.charCodeAt(idx + oldStr.length) : 0;
+                        const isBeforeOk = before === 0 || before === 0x2F /*/*/ || before === 0x3B /*;*/ || before === 0x4C /*L*/ || before === 0x5B /*[*/ || !((before >= 0x41 && before <= 0x5A) || (before >= 0x61 && before <= 0x7A) || (before >= 0x30 && before <= 0x39) || before === 0x5F || before === 0x24);
+                        const isAfterOk = after === 0 || after === 0x3B /*;*/ || after === 0x3C /*<*/ || after === 0x24 /*$*/ || !((after >= 0x41 && after <= 0x5A) || (after >= 0x61 && after <= 0x7A) || (after >= 0x30 && after <= 0x39) || after === 0x5F);
+                        if (isBeforeOk && isAfterOk) {
+                            str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
+                            idx += newStr.length;
+                        } else {
+                            idx++;
+                        }
+                    }
                 }
                 const lenBuf = Buffer.alloc(2);
                 lenBuf.writeUInt16BE(str.length, 0);
@@ -128,6 +139,15 @@ async function main() {
     const mappingsText = (await download(mappingsURL)).toString();
     const classMap = parseMappings(mappingsText);
     console.log(`   ${Object.keys(classMap).length} class mappings`);
+// Replace references to problematic Java stdlib classes with our stubs
+const REPLACE_MAP = {
+    "java/net/Proxy": "org/eaglercraft/network/Proxy",
+    "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
+    "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
+};
+
+// Apply REPLACE_MAP to classMap
+Object.assign(classMap, REPLACE_MAP);
 
     console.log('3. Downloading client JAR...');
     const jarData = await download(CLIENT_JAR_URL);
