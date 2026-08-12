@@ -7,11 +7,7 @@ const VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manife
 const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
-const REPLACE_MAP = {
-    "bfw": "net/minecraft/world/entity/player/Player",
-    "afd": "net/minecraft/util/GsonHelper",
-    "l": "net/minecraft/CrashReport",
-};
+const REPLACE_MAP = {};
 
 let GLOBAL_PATCHES = 0;
 
