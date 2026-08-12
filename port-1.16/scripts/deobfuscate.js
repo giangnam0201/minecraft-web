@@ -10,7 +10,6 @@ const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
-    "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
     "l": "net/minecraft/CrashReport",
@@ -51,7 +50,7 @@ function applyRenames(str, renames) {
     for (const oldStr of sortedKeys) {
         let newStr = renames.get(oldStr);
         // Escape $ in replacement for String.replace
-        const safeRepl = newStr.replace(/\$/g, '$$$$');
+        const safeRepl = newStr.replace(/\$/g, '$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
