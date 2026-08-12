@@ -48,11 +48,20 @@ function applyRenames(str, renames) {
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
         if (oldStr.length <= 1) continue;
-        const newStr = renames.get(oldStr);
-        const parts = str.split(oldStr);
-        if (parts.length > 1) {
-            patches += parts.length - 1;
-            str = parts.join(newStr.replace(/\$/g, '$$'));
+        const newStr = renames.get(oldStr).replace(/\$/g, '$$');
+        let idx = 0;
+        while ((idx = str.indexOf(oldStr, idx)) !== -1) {
+            const before = idx > 0 ? str.charCodeAt(idx - 1) : 0;
+            const after = idx + oldStr.length < str.length ? str.charCodeAt(idx + oldStr.length) : 0;
+            const okBefore = before === 0 || before === 0x2F || before === 0x3B || before === 0x4C || before === 0x5B || !((before >= 0x41 && before <= 0x5A) || (before >= 0x61 && before <= 0x7A) || (before >= 0x30 && before <= 0x39) || before === 0x5F || before === 0x24);
+            const okAfter = after === 0 || after === 0x3B || after === 0x3C || after === 0x24 || !((after >= 0x41 && after <= 0x5A) || (after >= 0x61 && after <= 0x7A) || (after >= 0x30 && after <= 0x39) || after === 0x5F);
+            if (okBefore && okAfter) {
+                str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
+                patches++;
+                idx += newStr.length;
+            } else {
+                idx++;
+            }
         }
     }
     return { str, patches };
