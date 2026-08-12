@@ -7,6 +7,13 @@ const VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manife
 const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
+// Module-level replacements for problematic classes
+const REPLACE_MAP = {
+    "java/net/Proxy": "org/eaglercraft/network/Proxy",
+    "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
+    "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
+};
+
 function download(url) {
     return new Promise((resolve, reject) => {
         https.get(url, (res) => {
@@ -142,16 +149,18 @@ async function main() {
     console.log('2. Downloading mappings...');
     const mappingsText = (await download(mappingsURL)).toString();
     const classMap = parseMappings(mappingsText);
+    // Add module-level replacements
+    Object.assign(classMap, REPLACE_MAP);
     console.log(`   ${Object.keys(classMap).length} class mappings`);
-// Replace references to problematic Java stdlib classes with our stubs
-const REPLACE_MAP = {
+// Module-level replacements
+var REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
 };
 
-// Apply REPLACE_MAP to classMap
-Object.assign(classMap, REPLACE_MAP);
+// Apply to classMap
+
 
     console.log('3. Downloading client JAR...');
     const jarData = await download(CLIENT_JAR_URL);
