@@ -8,7 +8,6 @@ const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
 function download(url) {
-    console.log(`  GET ${url.substring(0, 80)}...`);
     return new Promise((resolve, reject) => {
         https.get(url, (res) => {
             if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -40,7 +39,6 @@ function parseMappings(text) {
     return classMap;
 }
 
-
 function rebuildClass(buf, classMap) {
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return buf;
 
@@ -71,11 +69,10 @@ function rebuildClass(buf, classMap) {
     if (renames.size === 0) return buf;
 
     const chunks = [];
-
-    // Copy header + cp_count
     chunks.push(buf.subarray(0, 10));
-
     pos = 10;
+
+    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
 
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
@@ -83,14 +80,13 @@ function rebuildClass(buf, classMap) {
 
         switch (tag) {
             case 1: {
-                const len = buf.readUInt16BE(pos); pos += 2;
+                const len = buf.readUInt16BE(pos);
+                pos += 2;
                 let str = buf.toString('utf8', pos, pos + len);
-                for (const [oldStr, newStr] of renames) {
-                    let idx = 0;
-                    while ((idx = str.indexOf(oldStr, idx)) !== -1) {
-                        str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
-                        idx += newStr.length;
-                    }
+                for (const oldStr of sortedKeys) {
+                    const newStr = renames.get(oldStr);
+                    const parts = str.split(oldStr);
+                    str = parts.join(newStr);
                 }
                 const lenBuf = Buffer.alloc(2);
                 lenBuf.writeUInt16BE(str.length, 0);
@@ -109,15 +105,12 @@ function rebuildClass(buf, classMap) {
         }
     }
 
-    // Copy remaining bytes after constant pool
     chunks.push(buf.subarray(pos));
-
     return Buffer.concat(chunks);
 }
 
 async function main() {
     console.log('=== Minecraft 1.16.5 Deobfuscator ===\n');
-
     console.log('1. Getting version manifest...');
     const manifest = JSON.parse((await download(VERSION_MANIFEST)).toString());
     const v1165 = manifest.versions.find(v => v.id === '1.16.5');
