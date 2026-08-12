@@ -37,6 +37,9 @@ dependencies {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+    options.compilerArgs.addAll(listOf(
+        "--add-exports", "java.base/java.net=ALL-UNNAMED"
+    ))
 }
 
 tasks.withType<Jar> {
