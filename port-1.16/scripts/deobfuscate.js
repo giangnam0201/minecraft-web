@@ -48,7 +48,7 @@ function applyRenames(str, renames) {
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
         if (oldStr.length <= 1) continue;
-        const newStr = renames.get(oldStr).replace(/\$/g, '$$');
+        const newStr = renames.get(oldStr);
         let idx = 0;
         while ((idx = str.indexOf(oldStr, idx)) !== -1) {
             const before = idx > 0 ? str.charCodeAt(idx - 1) : 0;
