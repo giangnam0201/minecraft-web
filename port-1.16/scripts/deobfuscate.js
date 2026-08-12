@@ -8,7 +8,7 @@ const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
 const REPLACE_MAP = {
-    "java/net/Proxy": "org/eaglercraft/network/Proxy",
+    "java/net/Proxy": "org/eag/Proxy",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
     "l": "net/minecraft/CrashReport",
