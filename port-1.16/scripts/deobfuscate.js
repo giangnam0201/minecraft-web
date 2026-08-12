@@ -40,20 +40,22 @@ function parseMappings(text) {
     return classMap;
 }
 
+
 function rebuildClass(buf, classMap) {
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return buf;
 
+    // Parse constant pool to find what needs renaming
     const cpCount = buf.readUInt16BE(8);
-    const cpEntries = [];
+    const renames = new Map(); // old_utf8_value -> new_utf8_value
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
-        const entry = { tag, start: pos - 1 };
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos); pos += 2;
-                entry.value = buf.toString('utf8', pos, pos + len);
-                entry.origLen = len;
+                const val = buf.toString('utf8', pos, pos + len);
+                const mapped = classMap[val];
+                if (mapped && mapped !== val) renames.set(val, mapped);
                 pos += len;
                 break;
             }
@@ -65,57 +67,71 @@ function rebuildClass(buf, classMap) {
             case 16: case 19: case 20: pos += 2; break;
             default: return buf;
         }
-        entry.end = pos;
-        cpEntries.push(entry);
     }
-    const cpEnd = pos;
 
-    const replacements = [];
-    for (const e of cpEntries) {
-        if (e.tag === 1 && e.value) {
-            const mapped = classMap[e.value];
-            if (mapped && mapped !== e.value) {
-                replacements.push({ origStart: e.start + 3, origLen: e.origLen, newStr: mapped });
+    if (renames.size === 0) return buf;
+
+    // Calculate size delta
+    let delta = 0;
+    for (const [oldVal, newVal] of renames) {
+        delta += newVal.length - oldVal.length;
+    }
+    if (delta === 0) return buf;
+
+    const out = Buffer.alloc(buf.length + delta);
+    // Copy header (8 bytes: magic + version)
+    buf.copy(out, 0, 0, 8);
+    // Copy cp_count
+    out.writeUInt16BE(cpCount, 8);
+
+    let outPos = 10;
+    pos = 10;
+
+    for (let i = 1; i < cpCount; i++) {
+        const tag = buf[pos++];
+        out[outPos++] = tag;
+
+        switch (tag) {
+            case 1: {
+                const len = buf.readUInt16BE(pos); pos += 2;
+                const val = buf.toString('utf8', pos, pos + len);
+                const newVal = renames.get(val) || val;
+                out.writeUInt16BE(newVal.length, outPos); outPos += 2;
+                out.write(newVal, outPos, newVal.length, 'utf8'); outPos += newVal.length;
+                pos += len;
+                break;
             }
+            case 3: case 4: {
+                for (let j = 0; j < 4; j++) out[outPos++] = buf[pos++];
+                break;
+            }
+            case 5: case 6: {
+                for (let j = 0; j < 8; j++) out[outPos++] = buf[pos++];
+                i++;
+                break;
+            }
+            case 7: case 8: {
+                for (let j = 0; j < 2; j++) out[outPos++] = buf[pos++];
+                break;
+            }
+            case 9: case 10: case 11: case 12: case 17: case 18: {
+                for (let j = 0; j < 4; j++) out[outPos++] = buf[pos++];
+                break;
+            }
+            case 15: {
+                for (let j = 0; j < 3; j++) out[outPos++] = buf[pos++];
+                break;
+            }
+            case 16: case 19: case 20: {
+                for (let j = 0; j < 2; j++) out[outPos++] = buf[pos++];
+                break;
+            }
+            default: return buf;
         }
     }
 
-    if (replacements.length === 0) return buf;
-
-    const sizeDelta = replacements.reduce((s, r) => s + r.newStr.length - r.origLen, 0);
-    const newSize = buf.length + sizeDelta;
-    const out = Buffer.alloc(newSize);
-
-    // Copy the class header up to the constant pool end first
-    buf.copy(out, 0, 0, cpEnd);
-
-    // Now copy the rest, splicing in replacements
-    let outPos = cpEnd;
-    let srcPos = cpEnd;
-    
-    replacements.sort((a, b) => a.origStart - b.origStart);
-
-    for (const r of replacements) {
-        const before = r.origStart - srcPos;
-        if (before > 0) {
-            buf.copy(out, outPos, srcPos, srcPos + before);
-            outPos += before;
-            srcPos += before;
-        }
-        // Skip the old string (tag + len + data) in source
-        srcPos = r.origStart + r.origLen;
-        // Write new: tag + length + string
-        out[outPos - 3] = 1; // tag is at origStart - 3
-        out.writeUInt16BE(r.newStr.length, outPos - 2);
-        out.write(r.newStr, outPos, r.newStr.length, 'utf8');
-        outPos += r.newStr.length;
-    }
-
-    // Copy remaining bytes
-    if (srcPos < buf.length) {
-        buf.copy(out, outPos, srcPos);
-    }
-
+    // Copy remaining bytes after constant pool
+    buf.copy(out, outPos, pos);
     return out;
 }
 
