@@ -101,7 +101,7 @@ function rebuildClass(buf, classMap) {
                 for (const oldStr of sortedKeys) {
                     const newStr = renames.get(oldStr);
                     if (oldStr.length > 2) {
-                        while (str.includes(oldStr)) str = str.replace(oldStr, newStr);
+                        str = str.split(oldStr).join(newStr);
                     } else {
                         const re = new RegExp('(?<![a-zA-Z0-9_/])' + oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![a-zA-Z0-9_])', 'g');
                         str = str.replace(re, newStr);
