@@ -42,7 +42,7 @@ teavm.wasmGC {
     outOfProcess = false
     fastGlobalAnalysis = false
     processMemory = 512
-    mainClass = "net.lax1dude.eaglercraft.v1_16.wasm.Bootstrap"
+    mainClass = "net.minecraft.client.main.Main"
     outputDir = file("build/wasm")
     properties = mapOf("java.util.TimeZone.autodetect" to "true")
     debugInformation = true
