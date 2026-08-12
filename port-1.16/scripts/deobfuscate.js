@@ -52,6 +52,7 @@ function rebuildClass(buf, classMap) {
     // Always include REPLACE_MAP
     for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
 
+    const cpCount = buf.readUInt16BE(8);
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
