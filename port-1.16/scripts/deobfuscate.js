@@ -100,22 +100,13 @@ function rebuildClass(buf, classMap) {
                 let str = buf.toString('utf8', pos, pos + len);
                 for (const oldStr of sortedKeys) {
                     const newStr = renames.get(oldStr);
-                    // Replace ALL occurrences - brute force byte replacement
-                    const oldBuf = Buffer.from(oldStr, 'utf8');
-                    const newBuf = Buffer.from(newStr, 'utf8');
-                    let idx = 0;
-                    while ((idx = str.indexOf(oldStr, idx)) !== -1) {
-                        // Check if surrounded by non-identifier chars (avoid partial matches)
-                        const before = idx > 0 ? str.charCodeAt(idx - 1) : 0;
-                        const after = idx + oldStr.length < str.length ? str.charCodeAt(idx + oldStr.length) : 0;
-                        const isBeforeOk = before === 0 || before === 0x2F /*/*/ || before === 0x3B /*;*/ || before === 0x4C /*L*/ || before === 0x5B /*[*/ || !((before >= 0x41 && before <= 0x5A) || (before >= 0x61 && before <= 0x7A) || (before >= 0x30 && before <= 0x39) || before === 0x5F || before === 0x24);
-                        const isAfterOk = after === 0 || after === 0x3B /*;*/ || after === 0x3C /*<*/ || after === 0x24 /*$*/ || !((after >= 0x41 && after <= 0x5A) || (after >= 0x61 && after <= 0x7A) || (after >= 0x30 && after <= 0x39) || after === 0x5F);
-                        if (isBeforeOk && isAfterOk) {
-                            str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
-                            idx += newStr.length;
-                        } else {
-                            idx++;
-                        }
+                    if (oldStr.length > 2) {
+                        while (str.includes(oldStr)) str = str.replace(oldStr, newStr);
+                    } else {
+                        const re = new RegExp('(?<![a-zA-Z0-9_/])' + oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![a-zA-Z0-9_])', 'g');
+                        str = str.replace(re, newStr);
+                        const re2 = new RegExp('(?<=L)' + oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=[;<])', 'g');
+                        str = str.replace(re2, newStr);
                     }
                 }
                 const lenBuf = Buffer.alloc(2);
