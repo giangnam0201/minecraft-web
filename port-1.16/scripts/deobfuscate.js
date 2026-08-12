@@ -106,13 +106,25 @@ function rebuildClass(buf, classMap) {
 
         switch (tag) {
             case 1: {
-                const len = buf.readUInt16BE(pos); pos += 2;
-                const orig = buf.toString('utf8', pos, pos + len);
-                const { str, patches: p } = applyRenames(orig, renames);
-                patches += p;
-                const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
-                chunks.push(lb, Buffer.from(str, 'utf8'));
-                pos += len;
+                const len = buf.readUInt16BE(pos);
+                // Check if this UTF8 entry needs modification before decoding
+                const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
+                let needsMod = false;
+                for (const oldStr of Object.keys(renames)) {
+                    if (rawStr.includes(oldStr)) { needsMod = true; break; }
+                }
+                if (!needsMod) {
+                    // Copy unmodified entry as-is (preserves modified UTF-8)
+                    chunks.push(buf.subarray(pos, pos + 2 + len));
+                    pos += 2 + len;
+                } else {
+                    pos += 2;
+                    const { str, patches: p } = applyRenames(rawStr, renames);
+                    patches += p;
+                    const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
+                    chunks.push(lb, Buffer.from(str, 'utf8'));
+                    pos += len;
+                }
                 break;
             }
             case 3: case 4: chunks.push(buf.subarray(pos, pos + 4)); pos += 4; break;
