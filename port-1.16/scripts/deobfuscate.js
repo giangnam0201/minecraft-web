@@ -66,6 +66,8 @@ function rebuildClass(buf, classMap) {
 
     // First pass: scan for obfuscated class names in constant pool
     let pos = 10;
+    // DISABLED for debugging
+    /*
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
@@ -86,6 +88,7 @@ function rebuildClass(buf, classMap) {
             default: return { buf, patches };
         }
     }
+    */
 
     if (renames.size === 0) return { buf, patches };
 
