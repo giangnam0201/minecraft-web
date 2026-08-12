@@ -45,19 +45,45 @@ function parseMappings(text) {
     return classMap;
 }
 
+function applyRenames(str, renames) {
+    let patches = 0;
+    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
+    for (const oldStr of sortedKeys) {
+        const newStr = renames.get(oldStr);
+        const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Descriptor: Lkey; or Lkey<
+        const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
+        const m1 = str.match(re1); if (m1) patches += m1.length;
+        str = str.replace(re1, newStr);
+        // Standalone: not surrounded by [a-zA-Z0-9_/]
+        const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
+        const m2 = str.match(re2); if (m2) patches += m2.length;
+        str = str.replace(re2, newStr);
+    }
+    return { str, patches };
+}
+
 function rebuildClass(buf, classMap) {
     let patches = 0;
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
-    const renames = new Map();
-    // Always include REPLACE_MAP
-    for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
 
     const cpCount = buf.readUInt16BE(8);
+    const renames = new Map();
+    for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
+
+    // First pass: scan constant pool for matching UTF8 entries
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
-            case 1: { const l = buf.readUInt16BE(pos); pos += 2; const v = buf.toString('utf8', pos, pos + l); const m = classMap[v]; if (m && m !== v) renames.set(v, m); pos += l; break; }
+            case 1: {
+                const len = buf.readUInt16BE(pos); pos += 2;
+                const val = buf.toString('utf8', pos, pos + len);
+                const mapped = classMap[val];
+                if (mapped && mapped !== val) renames.set(val, mapped);
+                pos += len;
+                break;
+            }
             case 3: case 4: pos += 4; break;
             case 5: case 6: pos += 8; i++; break;
             case 7: case 8: pos += 2; break;
@@ -70,29 +96,20 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return { buf, patches };
 
+    // Second pass: rebuild constant pool with renamed UTF8 entries
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
-    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
 
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         chunks.push(Buffer.from([tag]));
+
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos); pos += 2;
-                let str = buf.toString('utf8', pos, pos + len);
-                for (const oldStr of sortedKeys) {
-                    const newStr = renames.get(oldStr);
-                    const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    // Descriptor pattern: Lkey; or Lkey<
-                    const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
-                    const m1 = str.match(re1); if (m1) patches += m1.length;
-                    str = str.replace(re1, newStr);
-                    // Standalone: not surrounded by [a-zA-Z0-9_/]
-                    const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
-                    const m2 = str.match(re2); if (m2) patches += m2.length;
-                    str = str.replace(re2, newStr);
-                }
+                const orig = buf.toString('utf8', pos, pos + len);
+                const { str, patches: p } = applyRenames(orig, renames);
+                patches += p;
                 const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
                 chunks.push(lb, Buffer.from(str, 'utf8'));
                 pos += len;
@@ -107,8 +124,14 @@ function rebuildClass(buf, classMap) {
             default: return { buf, patches };
         }
     }
+
     chunks.push(buf.subarray(pos));
-    return { buf: Buffer.concat(chunks), patches };
+    try {
+        const result = Buffer.concat(chunks);
+        return { buf: result, patches };
+    } catch(e) {
+        return { buf, patches };
+    }
 }
 
 async function main() {
@@ -124,7 +147,7 @@ async function main() {
     console.log('2. Downloading mappings...');
     const classMap = parseMappings((await download(mUrl)).toString());
     Object.assign(classMap, REPLACE_MAP);
-    console.log(`   ${Object.keys(classMap).length} class mappings`);
+    console.log(`   ${Object.keys(classMap).length} mappings`);
 
     console.log('3. Downloading client JAR...');
     const jar = await download(CLIENT_JAR_URL);
@@ -151,8 +174,7 @@ async function main() {
         }
     }
 
-    console.log(`   ${renamed} renamed, ${skipped} passthrough, ${GLOBAL_PATCHES} total CP patches`);
-
+    console.log(`   ${renamed} renamed, ${skipped} passthrough, ${GLOBAL_PATCHES} CP patches`);
     console.log('5. Writing output...');
     fs.mkdirSync(OUT_DIR, { recursive: true });
     newZip.writeZip(OUT_JAR);
