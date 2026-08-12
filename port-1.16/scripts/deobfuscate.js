@@ -38,7 +38,6 @@ function parseMappings(text) {
         if (a === -1) continue;
         const left = t.substring(0, a);
         const right = t.substring(a + 4).replace(/:$/, '').trim();
-        // Class mappings: contain dots, no spaces/parens/colons before ->
         if (!left.includes('.') || left.includes(' ') || left.includes('(') || left.includes(':')) continue;
         classMap[right] = left.trim().replace(/\./g, '/');
     }
@@ -46,17 +45,16 @@ function parseMappings(text) {
 }
 
 function applyRenames(str, renames, allKeys) {
-    if (allKeys.length === 0) return { str, patches: 0 };
     let patches = 0;
-    const escapedKeys = allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const pattern = '(?<=L)(' + escapedKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + escapedKeys.join('|') + ')(?![a-zA-Z0-9_])';
-    try { re = new RegExp(pattern, 'g'); } catch(e) { return { str, patches: 0 }; }
-    str = str.replace(re, (match, descMatch, wordMatch) => {
-        const matched = descMatch || wordMatch;
-        const replacement = renames.get(matched);
-        if (replacement) { patches++; return replacement; }
-        return match;
-    });
+    for (const oldStr of allKeys) {
+        if (oldStr.length <= 1) continue;
+        const newStr = renames.get(oldStr);
+        const parts = str.split(oldStr);
+        if (parts.length > 1) {
+            patches += parts.length - 1;
+            str = parts.join(newStr);
+        }
+    }
     return { str, patches };
 }
 
@@ -92,10 +90,12 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return { buf, patches };
 
-    // Pre-compile a regex for fast needsMod check
     const allKeys = [...renames.keys()].filter(k => k.length > 1);
     let needsModRegex = null;
-    try { if (allKeys.length > 0) needsModRegex = new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')); } catch(e) {}
+    try {
+        if (allKeys.length > 0)
+            needsModRegex = new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
+    } catch (e) {}
 
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
@@ -180,25 +180,6 @@ async function main() {
     }
 
     console.log(`   ${renamed} renamed, ${skipped} passthrough, ${GLOBAL_PATCHES} CP patches`);
-
-    // Add prebuilt java.net stubs directly to JAR
-    const prebuiltDir = path.resolve(__dirname, '..', 'libs', 'prebuilt');
-    if (fs.existsSync(prebuiltDir)) {
-        function addDir(dir, prefix) {
-            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-                const full = path.join(dir, entry.name);
-                const entryName = prefix + entry.name;
-                if (entry.isDirectory()) {
-                    addDir(full, entryName + '/');
-                } else {
-                    newZip.addFile(entryName, fs.readFileSync(full));
-                }
-            }
-        }
-        addDir(prebuiltDir, '');
-        console.log('   Added prebuilt stubs');
-    }
-
     console.log('5. Writing output...');
     fs.mkdirSync(OUT_DIR, { recursive: true });
     newZip.writeZip(OUT_JAR);
