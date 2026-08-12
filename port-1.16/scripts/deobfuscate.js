@@ -85,8 +85,9 @@ function rebuildClass(buf, classMap) {
                 let str = buf.toString('utf8', pos, pos + len);
                 for (const oldStr of sortedKeys) {
                     const newStr = renames.get(oldStr);
-                    const parts = str.split(oldStr);
-                    str = parts.join(newStr);
+                    const escapedKey = oldStr.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
+                    const regex = new RegExp('(?<![a-zA-Z0-9_])' + escapedKey + '(?![a-zA-Z0-9_])', 'g');
+                    str = str.replace(regex, newStr);
                 }
                 const lenBuf = Buffer.alloc(2);
                 lenBuf.writeUInt16BE(str.length, 0);
