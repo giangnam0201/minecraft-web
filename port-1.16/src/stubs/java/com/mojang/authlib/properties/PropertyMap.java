@@ -1,2 +1,5 @@
 package com.mojang.authlib.properties;
-public class PropertyMap extends java.util.HashMap<String, Object> {}
+import java.util.HashMap;
+public class PropertyMap extends HashMap<String, Object> {
+    public static class Serializer {}
+}

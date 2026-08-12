@@ -3,10 +3,16 @@ import java.util.*;
 
 class OptionParser {
     public OptionParser() {}
-    public OptionSpec accepts(String o, String d) { return new OptionSpec(); }
+    public OptionSpecBuilder accepts(String o, String d) { return new OptionSpecBuilder(); }
     public OptionSet parse(String[] a) { return new OptionSet(); }
     public void formatHelpWith(Object o) {}
     public void allowsUnrecognizedOptions() {}
+}
+
+class OptionSpecBuilder {
+    public OptionSpecBuilder withRequiredArg() { return this; }
+    public OptionSpecBuilder ofType(Class c) { return this; }
+    public OptionSpecBuilder defaultsTo(Object o, Object[] os) { return this; }
 }
 
 class OptionSet {
