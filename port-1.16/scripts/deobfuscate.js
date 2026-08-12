@@ -36,8 +36,10 @@ function parseMappings(text) {
         if (!t || t.startsWith('#') || t.startsWith('    ')) continue;
         const a = t.indexOf(' -> ');
         if (a === -1) continue;
-        const left = t.substring(0, a), right = t.substring(a + 4).replace(/:$/, '').trim();
-        if (!left.includes('.')) continue;
+        const left = t.substring(0, a);
+        const right = t.substring(a + 4).replace(/:$/, '').trim();
+        // Class mappings: contain dots, no spaces/parens/colons before ->
+        if (!left.includes('.') || left.includes(' ') || left.includes('(') || left.includes(':')) continue;
         classMap[right] = left.trim().replace(/\./g, '/');
     }
     return classMap;
