@@ -47,10 +47,7 @@ function parseMappings(text) {
 
 function rebuildClass(buf, classMap) {
     let patches = 0;
-    // Skip patching for now - just copy through
-    return { buf, patches: 0 };
-
-    const cpCount = buf.readUInt16BE(8);
+    if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
     const renames = new Map();
     // Always include REPLACE_MAP
     for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
@@ -85,19 +82,15 @@ function rebuildClass(buf, classMap) {
                 let str = buf.toString('utf8', pos, pos + len);
                 for (const oldStr of sortedKeys) {
                     const newStr = renames.get(oldStr);
-                    if (oldStr.length > 2) {
-                        const parts = str.split(oldStr);
-                        patches += parts.length - 1;
-                        str = parts.join(newStr);
-                    } else {
-                        const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const re1 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
-                        const m1 = str.match(re1); if (m1) patches += m1.length;
-                        str = str.replace(re1, newStr);
-                        const re2 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
-                        const m2 = str.match(re2); if (m2) patches += m2.length;
-                        str = str.replace(re2, newStr);
-                    }
+                    const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    // Descriptor pattern: Lkey; or Lkey<
+                    const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
+                    const m1 = str.match(re1); if (m1) patches += m1.length;
+                    str = str.replace(re1, newStr);
+                    // Standalone: not surrounded by [a-zA-Z0-9_/]
+                    const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
+                    const m2 = str.match(re2); if (m2) patches += m2.length;
+                    str = str.replace(re2, newStr);
                 }
                 const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
                 chunks.push(lb, Buffer.from(str, 'utf8'));
