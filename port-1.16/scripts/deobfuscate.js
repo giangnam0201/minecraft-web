@@ -47,14 +47,13 @@ function rebuildClass(buf, classMap) {
     const cpEntries = [];
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
-        const start = pos;
         const tag = buf[pos++];
-        const entry = { tag, start };
+        const entry = { tag, start: pos - 1 };
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos); pos += 2;
                 entry.value = buf.toString('utf8', pos, pos + len);
-                entry.len = len;
+                entry.origLen = len;
                 pos += len;
                 break;
             }
@@ -72,42 +71,47 @@ function rebuildClass(buf, classMap) {
     const cpEnd = pos;
 
     const replacements = [];
-    let sizeDelta = 0;
     for (const e of cpEntries) {
         if (e.tag === 1 && e.value) {
             const mapped = classMap[e.value];
-            if (mapped) {
-                replacements.push({ entry: e, newVal: mapped });
-                sizeDelta += mapped.length - e.len;
+            if (mapped && mapped !== e.value) {
+                replacements.push({ origStart: e.start + 3, origLen: e.origLen, newStr: mapped });
             }
         }
     }
 
     if (replacements.length === 0) return buf;
 
+    const sizeDelta = replacements.reduce((s, r) => s + r.newStr.length - r.origLen, 0);
     const newSize = buf.length + sizeDelta;
     const out = Buffer.alloc(newSize);
+
+    // Copy the class header up to the constant pool end first
     buf.copy(out, 0, 0, cpEnd);
 
+    // Now copy the rest, splicing in replacements
     let outPos = cpEnd;
     let srcPos = cpEnd;
-    let offsetShift = 0;
+    
+    replacements.sort((a, b) => a.origStart - b.origStart);
 
     for (const r of replacements) {
-        const e = r.entry;
-        const before = e.start - srcPos;
+        const before = r.origStart - srcPos;
         if (before > 0) {
             buf.copy(out, outPos, srcPos, srcPos + before);
             outPos += before;
             srcPos += before;
         }
-
-        out[outPos++] = 1;
-        out.writeUInt16BE(r.newVal.length, outPos); outPos += 2;
-        out.write(r.newVal, outPos, r.newVal.length, 'utf8'); outPos += r.newVal.length;
-        srcPos = e.end;
+        // Skip the old string (tag + len + data) in source
+        srcPos = r.origStart + r.origLen;
+        // Write new: tag + length + string
+        out[outPos - 3] = 1; // tag is at origStart - 3
+        out.writeUInt16BE(r.newStr.length, outPos - 2);
+        out.write(r.newStr, outPos, r.newStr.length, 'utf8');
+        outPos += r.newStr.length;
     }
 
+    // Copy remaining bytes
     if (srcPos < buf.length) {
         buf.copy(out, outPos, srcPos);
     }
