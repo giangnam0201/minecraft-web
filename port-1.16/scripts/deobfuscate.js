@@ -110,7 +110,7 @@ function rebuildClass(buf, classMap) {
                 // Check if this UTF8 entry needs modification before decoding
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
                 let needsMod = false;
-                for (const oldStr of Object.keys(renames)) {
+                for (const oldStr of renames.keys()) {
                     if (rawStr.includes(oldStr)) { needsMod = true; break; }
                 }
                 if (!needsMod) {
