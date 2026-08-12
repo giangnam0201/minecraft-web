@@ -94,10 +94,16 @@ function rebuildClass(buf, classMap) {
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos); pos += 2;
-                const val = buf.toString('utf8', pos, pos + len);
-                let val = valOrig; for (const [oldStr, newStr] of renames) { let idx = 0; while ((idx = val.indexOf(oldStr, idx)) !== -1) { val = val.substring(0, idx) + newStr + val.substring(idx + oldStr.length); idx += newStr.length; } } const newVal = val;
-                out.writeUInt16BE(newVal.length, outPos); outPos += 2;
-                out.write(newVal, outPos, newVal.length, 'utf8'); outPos += newVal.length;
+                let str = buf.toString('utf8', pos, pos + len);
+                for (const [oldStr, newStr] of renames) {
+                    let idx = 0;
+                    while ((idx = str.indexOf(oldStr, idx)) !== -1) {
+                        str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
+                        idx += newStr.length;
+                    }
+                }
+                out.writeUInt16BE(str.length, outPos); outPos += 2;
+                out.write(str, outPos, str.length, 'utf8'); outPos += str.length;
                 pos += len;
                 break;
             }
