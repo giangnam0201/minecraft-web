@@ -111,39 +111,17 @@ function rebuildClass(buf, classMap) {
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
-                const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                let needsMod = false;
-                for (const oldStr of renames.keys()) {
-                    if (oldStr.length > 1) {
-                        let idx = rawStr.indexOf(oldStr);
-                        while (idx !== -1) {
-                            const before = idx > 0 ? rawStr.charCodeAt(idx - 1) : 0;
-                            const after = idx + oldStr.length < rawStr.length ? rawStr.charCodeAt(idx + oldStr.length) : 0;
-                            const okBefore = before === 0 || before === 0x2F || before === 0x3B || before === 0x4C || before === 0x5B || !((before >= 0x41 && before <= 0x5A) || (before >= 0x61 && before <= 0x7A) || (before >= 0x30 && before <= 0x39) || before === 0x5F || before === 0x24);
-                            const okAfter = after === 0 || after === 0x3B || after === 0x3C || after === 0x24 || !((after >= 0x41 && after <= 0x5A) || (after >= 0x61 && after <= 0x7A) || (after >= 0x30 && after <= 0x39) || after === 0x5F);
-                            if (okBefore && okAfter) { needsMod = true; break; }
-                            idx = rawStr.indexOf(oldStr, idx + 1);
-                        }
-                    }
-                    if (needsMod) break;
-                }
-                if (!needsMod) {
-                    chunks.push(buf.subarray(pos, pos + 2 + len));
-                    pos += 2 + len;
+                pos += 2;
+                const rawStr = buf.toString('utf8', pos, pos + len);
+                const { str, patches: p } = applyRenames(rawStr, renames);
+                if (p > 0 && str.length < 65536) {
+                    patches += p;
+                    const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
+                    chunks.push(lb, Buffer.from(str, 'utf8'));
                 } else {
-                    pos += 2;
-                    const { str, patches: p } = applyRenames(rawStr, renames);
-                    if (str.length > 65535) {
-                        // Too long - fall back to original
-                        chunks.push(buf.subarray(pos - 2, pos - 2 + 2 + len));
-                        pos += len;
-                    } else {
-                        patches += p;
-                        const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
-                        chunks.push(lb, Buffer.from(str, 'utf8'));
-                        pos += len;
-                    }
+                    chunks.push(buf.subarray(pos - 2, pos - 2 + 2 + len));
                 }
+                pos += len;
                 break;
             }
             case 3: case 4: chunks.push(buf.subarray(pos, pos + 4)); pos += 4; break;

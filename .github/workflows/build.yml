@@ -42,7 +42,7 @@ jobs:
 
       - name: Deobfuscate 1.16.5 JAR
         run: node port-1.16/scripts/deobfuscate.js
-        timeout-minutes: 10
+        timeout-minutes: 20
 
       - name: Verify deobfuscated JAR
         run: |
