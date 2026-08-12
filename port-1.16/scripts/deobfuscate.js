@@ -11,6 +11,9 @@ const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
+    "bfw": "net/minecraft/world/entity/player/Player",
+    "afd": "net/minecraft/util/GsonHelper",
+    "l": "net/minecraft/CrashReport",
 };
 
 let GLOBAL_PATCHES = 0;
@@ -46,14 +49,16 @@ function applyRenames(str, renames) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
-        const newStr = renames.get(oldStr);
+        let newStr = renames.get(oldStr);
+        // Escape $ in replacement for String.replace
+        const safeRepl = newStr.replace(/\$/g, '$$$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
-        str = str.replace(re1, newStr);
+        str = str.replace(re1, safeRepl);
         const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
         const m2 = str.match(re2); if (m2) patches += m2.length;
-        str = str.replace(re2, newStr);
+        str = str.replace(re2, safeRepl);
     }
     return { str, patches };
 }
