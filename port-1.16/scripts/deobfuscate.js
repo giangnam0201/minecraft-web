@@ -50,7 +50,7 @@ function applyRenames(str, renames, allKeys) {
     let patches = 0;
     const escapedKeys = allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const pattern = '(?<=L)(' + escapedKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + escapedKeys.join('|') + ')(?![a-zA-Z0-9_])';
-    const re = new RegExp(pattern, 'g');
+    try { re = new RegExp(pattern, 'g'); } catch(e) { return { str, patches: 0 }; }
     str = str.replace(re, (match, descMatch, wordMatch) => {
         const matched = descMatch || wordMatch;
         const replacement = renames.get(matched);
@@ -94,7 +94,8 @@ function rebuildClass(buf, classMap) {
 
     // Pre-compile a regex for fast needsMod check
     const allKeys = [...renames.keys()].filter(k => k.length > 1);
-    const needsModRegex = allKeys.length > 0 ? new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')) : null;
+    let needsModRegex = null;
+    try { if (allKeys.length > 0) needsModRegex = new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')); } catch(e) {}
 
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
