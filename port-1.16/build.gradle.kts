@@ -25,7 +25,8 @@ sourceSets {
 	named("main") {
 		java.srcDirs(
 			"src/main/java",
-			"src/platform-api/java"
+			"src/platform-api/java",
+			"src/stubs/java"
 		)
 	}
 }
