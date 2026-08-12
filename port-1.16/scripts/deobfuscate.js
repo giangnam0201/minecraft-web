@@ -88,6 +88,9 @@ function rebuildClass(buf, classMap) {
                     const escapedKey = oldStr.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&');
                     const regex = new RegExp('(?<![a-zA-Z0-9_])' + escapedKey + '(?![a-zA-Z0-9_])', 'g');
                     str = str.replace(regex, newStr);
+                    // Also replace in descriptors: Lclassname;
+                    const descRegex = new RegExp('L' + escapedKey + ';', 'g');
+                    str = str.replace(descRegex, 'L' + newStr + ';');
                 }
                 const lenBuf = Buffer.alloc(2);
                 lenBuf.writeUInt16BE(str.length, 0);
