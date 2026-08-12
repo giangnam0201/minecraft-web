@@ -1,5 +1,5 @@
 plugins {
-	id("java")
+    id("java-library")
 }
 
 allprojects {
@@ -31,7 +31,7 @@ sourceSets {
 }
 
 dependencies {
-    implementation(files("libs/minecraft-1.16.5-deobf.jar"))
+    api(files("libs/minecraft-1.16.5-deobf.jar"))
 }
 
 tasks.withType<Jar> {
