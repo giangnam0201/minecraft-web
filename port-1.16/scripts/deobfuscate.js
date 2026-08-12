@@ -11,8 +11,6 @@ const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
-    "bfw": "net/minecraft/world/entity/player/Player",
-    "afd": "net/minecraft/util/GsonHelper",
 };
 
 let GLOBAL_PATCHES = 0;
@@ -72,6 +70,8 @@ function rebuildClass(buf, classMap) {
 
     // First pass: scan constant pool for matching UTF8 entries
     let pos = 10;
+    // NOTE: temporarily disable classMap matching for debugging
+    /*
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
@@ -92,6 +92,7 @@ function rebuildClass(buf, classMap) {
             default: return { buf, patches };
         }
     }
+    */
 
     if (renames.size === 0) return { buf, patches };
 
