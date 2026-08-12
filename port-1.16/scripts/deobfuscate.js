@@ -101,6 +101,10 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return { buf, patches };
 
+    // Pre-compile a regex for fast needsMod check
+    const allKeys = [...renames.keys()].filter(k => k.length > 1).sort((a,b) => b.length - a.length);
+    const needsModRegex = allKeys.length > 0 ? new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')) : null;
+
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
 
@@ -111,15 +115,20 @@ function rebuildClass(buf, classMap) {
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
-                pos += 2;
-                const rawStr = buf.toString('utf8', pos, pos + len);
-                const { str, patches: p } = applyRenames(rawStr, renames);
-                if (p > 0 && str.length < 65536) {
-                    patches += p;
-                    const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
-                    chunks.push(lb, Buffer.from(str, 'utf8'));
+                const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
+                if (needsModRegex && needsModRegex.test(rawStr)) {
+                    pos += 2;
+                    const { str, patches: p } = applyRenames(rawStr, renames);
+                    if (p > 0 && str.length < 65536) {
+                        patches += p;
+                        const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
+                        chunks.push(lb, Buffer.from(str, 'utf8'));
+                    } else {
+                        chunks.push(buf.subarray(pos - 2, pos - 2 + 2 + len));
+                    }
                 } else {
-                    chunks.push(buf.subarray(pos - 2, pos - 2 + 2 + len));
+                    chunks.push(buf.subarray(pos, pos + 2 + len));
+                    pos += 2 + len;
                 }
                 pos += len;
                 break;
