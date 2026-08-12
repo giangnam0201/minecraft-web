@@ -50,7 +50,7 @@ function applyRenames(str, renames, allKeys) {
         if (oldStr.length <= 1) continue;
         const newStr = renames.get(oldStr);
         const parts = str.split(oldStr);
-        if (parts.length > 1) {
+        if (parts.length > 1 && parts.length < 1000) {
             patches += parts.length - 1;
             str = parts.join(newStr);
         }
@@ -108,7 +108,7 @@ function rebuildClass(buf, classMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                if (needsModRegex && needsModRegex.test(rawStr)) {
+                if (needsModRegex && rawStr.length < 10000 && needsModRegex.test(rawStr)) {
                     pos += 2;
                     const { str, patches: p } = applyRenames(rawStr, renames, allKeys);
                     if (p > 0 && str.length < 65536) {
