@@ -46,15 +46,14 @@ jobs:
 
       - name: Build with TeaVM (WASM)
         working-directory: port-1.16
-        run: ./gradlew target_teavm_wasm_gc:assembleMainComponents --no-daemon
+        run: ./gradlew target_teavm_wasm_gc:compileJava target_teavm_wasm_gc:generateWasmGC --no-daemon
         timeout-minutes: 30
 
-      - name: Copy output
+      - name: Copy WASM output
         run: |
           mkdir -p public
-          cp port-1.16/target_teavm_wasm_gc/javascript_dist/*.html public/index.html 2>/dev/null || echo "No HTML output"
-          ls -lh public/ 2>/dev/null || echo "public empty"
-          ls -lh port-1.16/target_teavm_wasm_gc/javascript_dist/ 2>/dev/null || echo "no dist"
+          cp port-1.16/target_teavm_wasm_gc/build/wasm/classes.wasm public/ 2>/dev/null || echo "No classes.wasm"
+          ls -lh public/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

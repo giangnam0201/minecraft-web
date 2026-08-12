@@ -31,9 +31,7 @@ sourceSets {
 }
 
 dependencies {
-	// 1.16.5 deobfuscated game classes (built by scripts/deobfuscate.js)
-	implementation(files("libs/minecraft-1.16.5-deobf.jar"))
-	implementation(libs.bundles.common)
+    implementation(files("libs/minecraft-1.16.5-deobf.jar"))
 }
 
 tasks.withType<Jar> {
