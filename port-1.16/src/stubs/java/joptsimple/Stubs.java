@@ -15,7 +15,11 @@ class OptionSpecBuilder {
     public ArgumentAcceptingOptionSpec defaultsTo(Object o, Object[] os) { return new ArgumentAcceptingOptionSpec(); }
 }
 
-class ArgumentAcceptingOptionSpec extends OptionSpec {}
+class ArgumentAcceptingOptionSpec extends OptionSpec {
+    public ArgumentAcceptingOptionSpec withRequiredArg() { return this; }
+    public ArgumentAcceptingOptionSpec ofType(Class c) { return this; }
+    public ArgumentAcceptingOptionSpec defaultsTo(Object o, Object[] os) { return this; }
+}
 
 class OptionSet {
     public boolean has(String o) { return false; }
