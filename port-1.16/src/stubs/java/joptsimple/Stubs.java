@@ -10,10 +10,12 @@ class OptionParser {
 }
 
 class OptionSpecBuilder {
-    public OptionSpecBuilder withRequiredArg() { return this; }
-    public OptionSpecBuilder ofType(Class c) { return this; }
-    public OptionSpecBuilder defaultsTo(Object o, Object[] os) { return this; }
+    public ArgumentAcceptingOptionSpec withRequiredArg() { return new ArgumentAcceptingOptionSpec(); }
+    public ArgumentAcceptingOptionSpec ofType(Class c) { return new ArgumentAcceptingOptionSpec(); }
+    public ArgumentAcceptingOptionSpec defaultsTo(Object o, Object[] os) { return new ArgumentAcceptingOptionSpec(); }
 }
+
+class ArgumentAcceptingOptionSpec extends OptionSpec {}
 
 class OptionSet {
     public boolean has(String o) { return false; }

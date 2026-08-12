@@ -30,6 +30,7 @@ dependencies {
     teavm(teavm.libs.jsoApis)
     implementation(rootProject)
     implementation(files("../libs/minecraft-1.16.5-deobf.jar"))
+    implementation(files("../libs/boot-override.jar"))
 }
 
 tasks.withType<JavaCompile> {
