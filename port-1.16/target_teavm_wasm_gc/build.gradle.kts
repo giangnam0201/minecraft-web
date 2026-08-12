@@ -28,9 +28,9 @@ repositories {
 dependencies {
     teavm(teavm.libs.jso)
     teavm(teavm.libs.jsoApis)
+    teavm(files("../libs/java-net-stubs.jar"))
     implementation(rootProject)
     implementation(files("../libs/minecraft-1.16.5-deobf.jar"))
-    implementation(files("../libs/java-net-stubs.jar"))
 }
 
 tasks.withType<JavaCompile> {

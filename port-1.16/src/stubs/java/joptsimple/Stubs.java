@@ -3,7 +3,7 @@ import java.util.*;
 
 class OptionParser {
     public OptionParser() {}
-    public OptionSpecBuilder accepts(String o, String d) { return new OptionSpecBuilder(); }
+    public OptionSpecBuilder accepts(String o) { return new OptionSpecBuilder(); }
     public OptionSet parse(String[] a) { return new OptionSet(); }
     public void formatHelpWith(Object o) {}
     public void allowsUnrecognizedOptions() {}
