@@ -39,7 +39,12 @@ jobs:
         timeout-minutes: 10
 
       - name: Verify deobfuscated JAR
-        run: ls -lh port-1.16/libs/minecraft-1.16.5-deobf.jar
+        run: |
+          ls -lh port-1.16/libs/minecraft-1.16.5-deobf.jar
+          echo "Checking for java/net/Proxy references still in JAR:"
+          unzip -p port-1.16/libs/minecraft-1.16.5-deobf.jar | strings | grep -c "java/net/Proxy" || echo "0 found (GOOD)"
+          echo "Checking for org/eaglercraft/network/Proxy:"
+          unzip -p port-1.16/libs/minecraft-1.16.5-deobf.jar | strings | grep -c "org/eaglercraft/network/Proxy" || echo "0 found (BAD - replacement not happening)"
 
       - name: Make Gradle wrapper executable
         run: chmod +x port-1.16/gradlew
