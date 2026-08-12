@@ -6,6 +6,7 @@ class OptionParser {
     public OptionSpec accepts(String o, String d) { return new OptionSpec(); }
     public OptionSet parse(String[] a) { return new OptionSet(); }
     public void formatHelpWith(Object o) {}
+    public void allowsUnrecognizedOptions() {}
 }
 
 class OptionSet {
@@ -18,4 +19,5 @@ class OptionSpec {
     public OptionSpec withRequiredArg() { return this; }
     public OptionSpec ofType(Class c) { return this; }
     public OptionSpec defaultsTo(Object o, Object[] os) { return this; }
+    public Object value(OptionSet os) { return null; }
 }

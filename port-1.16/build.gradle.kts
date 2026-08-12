@@ -35,6 +35,12 @@ dependencies {
     api(files("libs/minecraft-1.16.5-deobf.jar"))
 }
 
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+    options.compilerArgs.add("--add-exports")
+    options.compilerArgs.add("java.base/java.net=ALL-UNNAMED")
+}
+
 tasks.withType<Jar> {
-	entryCompression = ZipEntryCompression.STORED
+    entryCompression = ZipEntryCompression.STORED
 }
