@@ -46,7 +46,12 @@ jobs:
 
       - name: Build with TeaVM (WASM)
         working-directory: port-1.16
-        run: ./gradlew target_teavm_wasm_gc:generateWasmGC --no-daemon --info 2>&1 | tail -200
+        run: |
+          set +e
+          ./gradlew target_teavm_wasm_gc:generateWasmGC --no-daemon --stacktrace > /tmp/gradle.log 2>&1
+          RC=$?
+          grep -iE 'error|exception|caused|unsupported|missing|wasm|FAILED|SUCCESS' /tmp/gradle.log | head -50
+          exit $RC
         timeout-minutes: 30
 
       - name: Copy WASM output
