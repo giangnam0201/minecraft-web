@@ -7,7 +7,12 @@ const VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manife
 const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
-const REPLACE_MAP = {};
+const REPLACE_MAP = {
+    "java/net/Proxy": "org/eaglercraft/network/Proxy",
+    "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
+    "bfw": "net/minecraft/world/entity/player/Player",
+    "afd": "net/minecraft/util/GsonHelper",
+};
 
 let GLOBAL_PATCHES = 0;
 
@@ -42,16 +47,13 @@ function applyRenames(str, renames) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
-        let newStr = renames.get(oldStr);
-        // Escape $ in replacement for String.replace
-        const safeRepl = newStr.replace(/\$/g, '$$');
-        const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
-        const m1 = str.match(re1); if (m1) patches += m1.length;
-        str = str.replace(re1, safeRepl);
-        const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
-        const m2 = str.match(re2); if (m2) patches += m2.length;
-        str = str.replace(re2, safeRepl);
+        if (oldStr.length <= 1) continue;
+        const newStr = renames.get(oldStr);
+        const parts = str.split(oldStr);
+        if (parts.length > 1) {
+            patches += parts.length - 1;
+            str = parts.join(newStr.replace(/\$/g, '$$'));
+        }
     }
     return { str, patches };
 }
@@ -64,9 +66,7 @@ function rebuildClass(buf, classMap) {
     const renames = new Map();
     for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
 
-    // First pass: scan for obfuscated class names in constant pool
     let pos = 10;
-    // ENABLED
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
@@ -87,11 +87,9 @@ function rebuildClass(buf, classMap) {
             default: return { buf, patches };
         }
     }
-    // end first pass */
 
     if (renames.size === 0) return { buf, patches };
 
-    // Second pass: rebuild constant pool
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
 
@@ -105,7 +103,7 @@ function rebuildClass(buf, classMap) {
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
                 let needsMod = false;
                 for (const oldStr of renames.keys()) {
-                    if (rawStr.includes(oldStr)) { needsMod = true; break; }
+                    if (oldStr.length > 1 && rawStr.includes(oldStr)) { needsMod = true; break; }
                 }
                 if (!needsMod) {
                     chunks.push(buf.subarray(pos, pos + 2 + len));
@@ -176,7 +174,7 @@ async function main() {
 
     console.log(`   ${renamed} renamed, ${skipped} passthrough, ${GLOBAL_PATCHES} CP patches`);
 
-    // Add prebuilt java.net stub classes directly to JAR
+    // Add prebuilt java.net stubs directly to JAR
     const prebuiltDir = path.resolve(__dirname, '..', 'libs', 'prebuilt');
     if (fs.existsSync(prebuiltDir)) {
         function addDir(dir, prefix) {
@@ -191,7 +189,7 @@ async function main() {
             }
         }
         addDir(prebuiltDir, '');
-        console.log('   Added prebuilt classes to JAR');
+        console.log('   Added prebuilt stubs');
     }
 
     console.log('5. Writing output...');
