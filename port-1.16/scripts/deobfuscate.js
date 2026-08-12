@@ -44,9 +44,8 @@ function parseMappings(text) {
 function rebuildClass(buf, classMap) {
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return buf;
 
-    // Parse constant pool to find what needs renaming
     const cpCount = buf.readUInt16BE(8);
-    const renames = new Map(); // old_utf8_value -> new_utf8_value
+    const renames = new Map();
     let pos = 10;
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
@@ -71,25 +70,16 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return buf;
 
-    // Calculate size delta
-    let delta = 0;
-    for (const [oldVal, newVal] of renames) {
-        delta += newVal.length - oldVal.length;
-    }
-    if (delta === 0) return buf;
+    const chunks = [];
 
-    const out = Buffer.alloc(buf.length + delta);
-    // Copy header (8 bytes: magic + version)
-    buf.copy(out, 0, 0, 8);
-    // Copy cp_count
-    out.writeUInt16BE(cpCount, 8);
+    // Copy header + cp_count
+    chunks.push(buf.subarray(0, 10));
 
-    let outPos = 10;
     pos = 10;
 
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
-        out[outPos++] = tag;
+        chunks.push(Buffer.from([tag]));
 
         switch (tag) {
             case 1: {
@@ -102,43 +92,27 @@ function rebuildClass(buf, classMap) {
                         idx += newStr.length;
                     }
                 }
-                out.writeUInt16BE(str.length, outPos); outPos += 2;
-                out.write(str, outPos, str.length, 'utf8'); outPos += str.length;
+                const lenBuf = Buffer.alloc(2);
+                lenBuf.writeUInt16BE(str.length, 0);
+                chunks.push(lenBuf);
+                chunks.push(Buffer.from(str, 'utf8'));
                 pos += len;
                 break;
             }
-            case 3: case 4: {
-                for (let j = 0; j < 4; j++) out[outPos++] = buf[pos++];
-                break;
-            }
-            case 5: case 6: {
-                for (let j = 0; j < 8; j++) out[outPos++] = buf[pos++];
-                i++;
-                break;
-            }
-            case 7: case 8: {
-                for (let j = 0; j < 2; j++) out[outPos++] = buf[pos++];
-                break;
-            }
-            case 9: case 10: case 11: case 12: case 17: case 18: {
-                for (let j = 0; j < 4; j++) out[outPos++] = buf[pos++];
-                break;
-            }
-            case 15: {
-                for (let j = 0; j < 3; j++) out[outPos++] = buf[pos++];
-                break;
-            }
-            case 16: case 19: case 20: {
-                for (let j = 0; j < 2; j++) out[outPos++] = buf[pos++];
-                break;
-            }
+            case 3: case 4: chunks.push(buf.subarray(pos, pos + 4)); pos += 4; break;
+            case 5: case 6: chunks.push(buf.subarray(pos, pos + 8)); pos += 8; i++; break;
+            case 7: case 8: chunks.push(buf.subarray(pos, pos + 2)); pos += 2; break;
+            case 9: case 10: case 11: case 12: case 17: case 18: chunks.push(buf.subarray(pos, pos + 4)); pos += 4; break;
+            case 15: chunks.push(buf.subarray(pos, pos + 3)); pos += 3; break;
+            case 16: case 19: case 20: chunks.push(buf.subarray(pos, pos + 2)); pos += 2; break;
             default: return buf;
         }
     }
 
     // Copy remaining bytes after constant pool
-    buf.copy(out, outPos, pos);
-    return out;
+    chunks.push(buf.subarray(pos));
+
+    return Buffer.concat(chunks);
 }
 
 async function main() {
