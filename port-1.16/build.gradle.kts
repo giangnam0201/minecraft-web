@@ -33,12 +33,11 @@ sourceSets {
 
 dependencies {
     api(files("libs/minecraft-1.16.5-deobf.jar"))
+    api(files("libs/java-net-stubs.jar"))
 }
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
-    options.compilerArgs.add("--add-exports")
-    options.compilerArgs.add("java.base/java.net=ALL-UNNAMED")
 }
 
 tasks.withType<Jar> {
