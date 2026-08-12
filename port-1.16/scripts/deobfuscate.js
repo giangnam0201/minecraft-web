@@ -13,7 +13,6 @@ const REPLACE_MAP = {
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
-    "l": "net/minecraft/CrashReport",
 };
 
 let GLOBAL_PATCHES = 0;
