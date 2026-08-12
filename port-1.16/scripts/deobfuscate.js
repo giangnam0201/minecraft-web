@@ -48,11 +48,9 @@ function applyRenames(str, renames) {
     for (const oldStr of sortedKeys) {
         const newStr = renames.get(oldStr);
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Descriptor: Lkey; or Lkey<
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
         str = str.replace(re1, newStr);
-        // Standalone: not surrounded by [a-zA-Z0-9_/]
         const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
         const m2 = str.match(re2); if (m2) patches += m2.length;
         str = str.replace(re2, newStr);
@@ -68,10 +66,8 @@ function rebuildClass(buf, classMap) {
     const renames = new Map();
     for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
 
-    // First pass: scan constant pool for matching UTF8 entries
+    // First pass: scan for obfuscated class names in constant pool
     let pos = 10;
-    // NOTE: temporarily disable classMap matching for debugging
-    /*
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
@@ -92,11 +88,10 @@ function rebuildClass(buf, classMap) {
             default: return { buf, patches };
         }
     }
-    */
 
     if (renames.size === 0) return { buf, patches };
 
-    // Second pass: rebuild constant pool with renamed UTF8 entries
+    // Second pass: rebuild constant pool
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
 
@@ -107,14 +102,12 @@ function rebuildClass(buf, classMap) {
         switch (tag) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
-                // Check if this UTF8 entry needs modification before decoding
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
                 let needsMod = false;
                 for (const oldStr of renames.keys()) {
                     if (rawStr.includes(oldStr)) { needsMod = true; break; }
                 }
                 if (!needsMod) {
-                    // Copy unmodified entry as-is (preserves modified UTF-8)
                     chunks.push(buf.subarray(pos, pos + 2 + len));
                     pos += 2 + len;
                 } else {
@@ -138,12 +131,7 @@ function rebuildClass(buf, classMap) {
     }
 
     chunks.push(buf.subarray(pos));
-    try {
-        const result = Buffer.concat(chunks);
-        return { buf: result, patches };
-    } catch(e) {
-        return { buf, patches };
-    }
+    return { buf: Buffer.concat(chunks), patches };
 }
 
 async function main() {
