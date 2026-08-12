@@ -29,6 +29,7 @@ dependencies {
     teavm(teavm.libs.jso)
     teavm(teavm.libs.jsoApis)
     implementation(rootProject)
+    implementation(files("../libs/minecraft-1.16.5-deobf.jar"))
 }
 
 tasks.withType<JavaCompile> {
