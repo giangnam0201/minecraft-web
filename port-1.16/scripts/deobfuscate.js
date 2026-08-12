@@ -45,27 +45,18 @@ function parseMappings(text) {
     return classMap;
 }
 
-function applyRenames(str, renames) {
+function applyRenames(str, renames, allKeys) {
+    if (allKeys.length === 0) return { str, patches: 0 };
     let patches = 0;
-    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
-    for (const oldStr of sortedKeys) {
-        if (oldStr.length <= 1) continue;
-        const newStr = renames.get(oldStr);
-        let idx = 0;
-        while ((idx = str.indexOf(oldStr, idx)) !== -1) {
-            const before = idx > 0 ? str.charCodeAt(idx - 1) : 0;
-            const after = idx + oldStr.length < str.length ? str.charCodeAt(idx + oldStr.length) : 0;
-            const okBefore = before === 0 || before === 0x2F || before === 0x3B || before === 0x4C || before === 0x5B || !((before >= 0x41 && before <= 0x5A) || (before >= 0x61 && before <= 0x7A) || (before >= 0x30 && before <= 0x39) || before === 0x5F || before === 0x24);
-            const okAfter = after === 0 || after === 0x3B || after === 0x3C || after === 0x24 || !((after >= 0x41 && after <= 0x5A) || (after >= 0x61 && after <= 0x7A) || (after >= 0x30 && after <= 0x39) || after === 0x5F);
-            if (okBefore && okAfter) {
-                str = str.substring(0, idx) + newStr + str.substring(idx + oldStr.length);
-                patches++;
-                idx += newStr.length;
-            } else {
-                idx++;
-            }
-        }
-    }
+    const escapedKeys = allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const pattern = '(?<=L)(' + escapedKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + escapedKeys.join('|') + ')(?![a-zA-Z0-9_])';
+    const re = new RegExp(pattern, 'g');
+    str = str.replace(re, (match, descMatch, wordMatch) => {
+        const matched = descMatch || wordMatch;
+        const replacement = renames.get(matched);
+        if (replacement) { patches++; return replacement; }
+        return match;
+    });
     return { str, patches };
 }
 
@@ -102,7 +93,7 @@ function rebuildClass(buf, classMap) {
     if (renames.size === 0) return { buf, patches };
 
     // Pre-compile a regex for fast needsMod check
-    const allKeys = [...renames.keys()].filter(k => k.length > 1).sort((a,b) => b.length - a.length);
+    const allKeys = [...renames.keys()].filter(k => k.length > 1);
     const needsModRegex = allKeys.length > 0 ? new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')) : null;
 
     const chunks = [buf.subarray(0, 10)];
@@ -118,7 +109,7 @@ function rebuildClass(buf, classMap) {
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
                 if (needsModRegex && needsModRegex.test(rawStr)) {
                     pos += 2;
-                    const { str, patches: p } = applyRenames(rawStr, renames);
+                    const { str, patches: p } = applyRenames(rawStr, renames, allKeys);
                     if (p > 0 && str.length < 65536) {
                         patches += p;
                         const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
