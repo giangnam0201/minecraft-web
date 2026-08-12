@@ -48,9 +48,9 @@ jobs:
         working-directory: port-1.16
         run: |
           set +e
-          ./gradlew target_teavm_wasm_gc:generateWasmGC --no-daemon --stacktrace > /tmp/gradle.log 2>&1
+          ./gradlew target_teavm_wasm_gc:generateWasmGC --no-daemon > /tmp/gradle.log 2>&1
           RC=$?
-          grep -iE 'error|exception|caused|unsupported|missing|wasm|FAILED|SUCCESS' /tmp/gradle.log | head -50
+          cat /tmp/gradle.log
           exit $RC
         timeout-minutes: 30
 
