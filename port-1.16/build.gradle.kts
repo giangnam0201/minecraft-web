@@ -33,6 +33,7 @@ sourceSets {
 
 dependencies {
     api(files("libs/minecraft-1.16.5-deobf.jar"))
+    api(files("libs/java-classlib-stubs.jar"))
     api("com.google.code.gson:gson:2.8.6")
     api("com.google.guava:guava:30.1-jre")
     api("org.apache.commons:commons-lang3:3.12.0")
