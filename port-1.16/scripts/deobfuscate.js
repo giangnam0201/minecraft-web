@@ -7,6 +7,8 @@ const VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manife
 const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
+// Keys >= 3 chars: safe for unconditional split/join
+// Keys 1-2 chars: need regex boundaries
 const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
@@ -44,15 +46,24 @@ function parseMappings(text) {
     return classMap;
 }
 
-function applyRenames(str, renames, allKeys) {
+function applyRenames(str, renames) {
     let patches = 0;
-    for (const oldStr of allKeys) {
+    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
+    for (const oldStr of sortedKeys) {
         if (oldStr.length <= 1) continue;
         const newStr = renames.get(oldStr);
-        const parts = str.split(oldStr);
-        if (parts.length > 1 && parts.length < 1000) {
-            patches += parts.length - 1;
-            str = parts.join(newStr);
+        if (oldStr.length >= 3) {
+            const parts = str.split(oldStr);
+            if (parts.length > 1 && parts.length < 1000) {
+                patches += parts.length - 1;
+                str = parts.join(newStr);
+            }
+        } else {
+            // 2-char keys: use boundary check to avoid false matches
+            const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])|(?<=L)' + esc + '(?=[;<])', 'g');
+            const before = str;
+            str = str.replace(re, (m) => { patches++; return newStr; });
         }
     }
     return { str, patches };
@@ -90,13 +101,6 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return { buf, patches };
 
-    const allKeys = [...renames.keys()].filter(k => k.length > 1);
-    let needsModRegex = null;
-    try {
-        if (allKeys.length > 0)
-            needsModRegex = new RegExp(allKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
-    } catch (e) {}
-
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
 
@@ -108,21 +112,15 @@ function rebuildClass(buf, classMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                if (needsModRegex && rawStr.length < 10000 && needsModRegex.test(rawStr)) {
-                    pos += 2;
-                    const { str, patches: p } = applyRenames(rawStr, renames, allKeys);
-                    if (p > 0 && str.length < 65536) {
-                        patches += p;
-                        const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
-                        chunks.push(lb, Buffer.from(str, 'utf8'));
-                    } else {
-                        chunks.push(buf.subarray(pos - 2, pos - 2 + 2 + len));
-                    }
+                const { str, patches: p } = applyRenames(rawStr, renames);
+                if (p > 0 && str.length < 65536) {
+                    patches += p;
+                    const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
+                    chunks.push(lb, Buffer.from(str, 'utf8'));
                 } else {
                     chunks.push(buf.subarray(pos, pos + 2 + len));
-                    pos += 2 + len;
                 }
-                pos += len;
+                pos += 2 + len;
                 break;
             }
             case 3: case 4: chunks.push(buf.subarray(pos, pos + 4)); pos += 4; break;
@@ -151,7 +149,6 @@ async function main() {
 
     console.log('2. Downloading mappings...');
     const classMap = parseMappings((await download(mUrl)).toString());
-    Object.assign(classMap, REPLACE_MAP);
     console.log(`   ${Object.keys(classMap).length} mappings`);
 
     console.log('3. Downloading client JAR...');
@@ -166,10 +163,10 @@ async function main() {
     for (const e of zip.getEntries()) {
         const nm = e.entryName;
         if (e.isDirectory) continue;
-        if (nm.startsWith('org/lwjgl/') || nm.startsWith('META-INF/')) { skipped++; continue; }
+        if (nm.startsWith('META-INF/')) { skipped++; continue; }
         if (nm.endsWith('.class')) {
             const obf = nm.replace(/\.class$/, '');
-            const deobf = classMap[obf];
+            const deobf = classMap[obf] || REPLACE_MAP[obf];
             const { buf: patched, patches } = rebuildClass(e.getData(), classMap);
             GLOBAL_PATCHES += patches;
             newZip.addFile((deobf || obf) + '.class', Buffer.from(patched));
