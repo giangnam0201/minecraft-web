@@ -58,11 +58,11 @@ function applyRenames(str, renames) {
         // Descriptor: Lkey; or Lkey<
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
-        str = str.replace(re1, newStr);
+        str = str.replace(re1, safeRepl);
         // Standalone: not surrounded by [a-zA-Z0-9_/]
         const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
         const m2 = str.match(re2); if (m2) patches += m2.length;
-        str = str.replace(re2, newStr);
+        str = str.replace(re2, safeRepl);
     }
     return { str, patches };
 }
