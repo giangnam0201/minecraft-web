@@ -33,6 +33,7 @@ class OptionSet {
     public boolean has(OptionSpec s) { return false; }
     public Object valueOf(String o) { return null; }
     public List valuesOf(String o) { return new ArrayList(); }
+    public List valuesOf(OptionSpec s) { return new ArrayList(); }
 }
 
 class OptionSpec {

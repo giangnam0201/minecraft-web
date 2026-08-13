@@ -18,6 +18,7 @@ const REPLACE_MAP = {
     "java/util/concurrent/ThreadFactory": "org/eaglercraft/util/ThreadFactory",
     "java/util/concurrent/ForkJoinTask": "org/eaglercraft/util/ForkJoinTask",
     "java/util/UUID": "org/eaglercraft/util/UUID",
+    "java/lang/Runtime": "org/eaglercraft/Runtime",
     "a": "com/mojang/math/Matrix3f",
     "b": "com/mojang/math/Matrix4f",
     "c": "com/mojang/math/OctahedralGroup",
