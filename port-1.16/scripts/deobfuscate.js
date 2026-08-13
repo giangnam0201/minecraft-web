@@ -89,12 +89,7 @@ function buildGlobalRenameMap(classMap) {
     try {
         descriptorRegex = new RegExp('(?<=L)(' + allKeys.join('|') + ')(?=[;<])', 'g');
     } catch (e) {}
-    // Standalone regex: only for class-name UTF8 entries
-    let standaloneRegex = null;
-    try {
-        standaloneRegex = new RegExp('(' + allKeys.join('|') + ')', 'g');
-    } catch (e) {}
-    return { map: merged, descriptorRegex, standaloneRegex };
+    return { map: merged, descriptorRegex };
 }
 
 function renameString(str, renameMap, isClassName) {
@@ -106,15 +101,10 @@ function renameString(str, renameMap, isClassName) {
             return match;
         });
     }
-    // Standalone pattern (only for class-name UTF8 entries)
-    if (isClassName && renameMap.standaloneRegex) {
-        str = str.replace(renameMap.standaloneRegex, (match, key) => {
-            if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
-            return match;
-        });
-    } else if (str.length === 1 && renameMap.map[str]) {
-        // Single-char class name as exact string (handled via descriptor above for Lx;)
-        // If it's a class name, replace exact match
+    // Standalone pattern: for class-name UTF8 entries, the whole string IS the class name
+    if (isClassName && renameMap.map[str] !== undefined && renameMap.map[str] !== str) {
+        patches++;
+        str = renameMap.map[str];
     }
     return { str, patches };
 }
