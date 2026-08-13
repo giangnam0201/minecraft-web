@@ -169,7 +169,7 @@ async function main() {
     console.log('2. Downloading mappings...');
     const classMap = parseMappings((await download(mUrl)).toString());
     GLOBAL_RENAME_MAP = buildGlobalRenameMap(classMap);
-    console.log(`   ${GLOBAL_RENAME_MAP.keys.length} mappings`);
+    console.log(`   ${Object.keys(classMap).length} mappings`);
 
     console.log('3. Downloading client JAR...');
     const jar = await download(CLIENT_JAR_URL);
