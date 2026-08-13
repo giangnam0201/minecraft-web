@@ -10,15 +10,15 @@ allprojects {
 	plugins.withId("java") {
 		java {
 			toolchain {
-				languageVersion = JavaLanguageVersion.of(17)
+				languageVersion = JavaLanguageVersion.of(21)
 			}
 		}
 	}
 }
 
 java {
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
 }
 
 sourceSets {
@@ -33,6 +33,12 @@ sourceSets {
 
 dependencies {
     api(files("libs/minecraft-1.16.5-deobf.jar"))
+    api("com.google.code.gson:gson:2.8.6")
+    api("com.google.guava:guava:30.1-jre")
+    api("org.apache.commons:commons-lang3:3.12.0")
+    api("org.apache.logging.log4j:log4j-api:2.14.1")
+    api("net.sf.jopt-simple:jopt-simple:5.0.4")
+    api("it.unimi.dsi:fastutil:8.5.6")
 }
 
 tasks.withType<JavaCompile> {
