@@ -12,6 +12,7 @@ const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
+    "java/net/InetSocketAddress": "org/eaglercraft/network/InetSocketAddress",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
 };
@@ -32,7 +33,7 @@ function download(url) {
 }
 
 function parseMappings(text) {
-    const classMap = {};
+    const classMap = Object.create(null);
     for (const line of text.split('\n')) {
         const t = line.trim();
         if (!t || t.startsWith('#') || t.startsWith('    ')) continue;
@@ -85,7 +86,7 @@ function rebuildClass(buf, classMap) {
                 const len = buf.readUInt16BE(pos); pos += 2;
                 const val = buf.toString('utf8', pos, pos + len);
                 const mapped = classMap[val];
-                if (mapped && mapped !== val) renames.set(val, mapped);
+                if (typeof mapped === 'string' && mapped !== val) renames.set(val, mapped);
                 pos += len;
                 break;
             }
