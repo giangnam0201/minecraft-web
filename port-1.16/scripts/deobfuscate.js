@@ -83,45 +83,38 @@ function buildGlobalRenameMap(classMap) {
     for (const [k, v] of Object.entries(classMap)) merged[k] = v;
     for (const [k, v] of Object.entries(REPLACE_MAP)) merged[k] = v;
     const sortedKeys = Object.keys(merged).sort((a, b) => b.length - a.length);
-    // Build combined regex for 2+ char keys (descriptor + standalone)
-    const multiKeys = sortedKeys.filter(k => k.length >= 2).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    let multiRegex = null;
+    const allKeys = sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    // Descriptor regex: Lkey; or Lkey< (safe, always apply)
+    let descriptorRegex = null;
     try {
-        if (multiKeys.length > 0) {
-            const pattern = '(?<=L)(' + multiKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + multiKeys.join('|') + ')(?![a-zA-Z0-9_/])';
-            multiRegex = new RegExp(pattern, 'g');
-        }
-    } catch (e) { multiRegex = null; }
-    // Build combined regex for 1-char keys (descriptor only)
-    const singleKeys = sortedKeys.filter(k => k.length === 1).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    let singleRegex = null;
+        descriptorRegex = new RegExp('(?<=L)(' + allKeys.join('|') + ')(?=[;<])', 'g');
+    } catch (e) {}
+    // Standalone regex: only for class-name UTF8 entries
+    let standaloneRegex = null;
     try {
-        if (singleKeys.length > 0) {
-            singleRegex = new RegExp('(?<=L)(' + singleKeys.join('|') + ')(?=[;<])', 'g');
-        }
-    } catch (e) { singleRegex = null; }
-    return { map: merged, multiRegex, singleRegex };
+        standaloneRegex = new RegExp('(' + allKeys.join('|') + ')', 'g');
+    } catch (e) {}
+    return { map: merged, descriptorRegex, standaloneRegex };
 }
 
-function renameString(str, renameMap) {
+function renameString(str, renameMap, isClassName) {
     let patches = 0;
-    if (renameMap.multiRegex) {
-        str = str.replace(renameMap.multiRegex, (match, descKey, wordKey) => {
-            const key = descKey || wordKey;
+    // Descriptor pattern (always safe)
+    if (renameMap.descriptorRegex) {
+        str = str.replace(renameMap.descriptorRegex, (match, key) => {
             if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
             return match;
         });
     }
-    if (renameMap.singleRegex) {
-        str = str.replace(renameMap.singleRegex, (match, key) => {
+    // Standalone pattern (only for class-name UTF8 entries)
+    if (isClassName && renameMap.standaloneRegex) {
+        str = str.replace(renameMap.standaloneRegex, (match, key) => {
             if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
             return match;
         });
-        // Standalone 1-char class name: entire string is exactly the key
-        if (str.length === 1 && renameMap.map[str]) {
-            patches++;
-            return { str: renameMap.map[str], patches };
-        }
+    } else if (str.length === 1 && renameMap.map[str]) {
+        // Single-char class name as exact string (handled via descriptor above for Lx;)
+        // If it's a class name, replace exact match
     }
     return { str, patches };
 }
@@ -131,6 +124,26 @@ function rebuildClass(buf, renameMap) {
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
 
     const cpCount = buf.readUInt16BE(8);
+    // Track which UTF8 indices are class names (referenced by CONSTANT_Class)
+    const classUtf8 = new Set();
+    {
+        let p = 10;
+        for (let i = 1; i < cpCount; i++) {
+            const tag = buf[p++];
+            switch (tag) {
+                case 1: { const l = buf.readUInt16BE(p); p += 2 + l; break; }
+                case 3: case 4: p += 4; break;
+                case 5: case 6: p += 8; i++; break;
+                case 7: { classUtf8.add(buf.readUInt16BE(p)); p += 2; break; }
+                case 8: p += 2; break;
+                case 9: case 10: case 11: case 12: case 17: case 18: p += 4; break;
+                case 15: p += 3; break;
+                case 16: case 19: case 20: p += 2; break;
+                default: return { buf, patches };
+            }
+        }
+    }
+
     const chunks = [buf.subarray(0, 10)];
     let pos = 10;
 
@@ -142,7 +155,7 @@ function rebuildClass(buf, renameMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                const { str, patches: p } = renameString(rawStr, renameMap);
+                const { str, patches: p } = renameString(rawStr, renameMap, classUtf8.has(i));
                 if (p > 0 && str.length < 65536) {
                     patches += p;
                     const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
