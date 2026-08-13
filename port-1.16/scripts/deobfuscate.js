@@ -51,7 +51,7 @@ function parseMappings(text) {
     return classMap;
 }
 
-function applyRenames(str, renames) {
+function applyRenames(str, renames, isClassName) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
@@ -59,12 +59,12 @@ function applyRenames(str, renames) {
         const newStr = renames.get(oldStr);
         const safeRepl = newStr.replace(/\$/g, '$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Descriptor: Lkey; or Lkey< (safe for all keys including 1-char)
+        // Descriptor: Lkey; or Lkey< (safe for all keys)
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
         str = str.replace(re1, safeRepl);
-        // Standalone: not surrounded by [a-zA-Z0-9_/] (only for 2+ char keys)
-        if (oldStr.length >= 2) {
+        // Standalone: for 2+ char keys, or 1-char keys that ARE class names
+        if (oldStr.length >= 2 || isClassName) {
             const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
             const m2 = str.match(re2); if (m2) patches += m2.length;
             str = str.replace(re2, safeRepl);
@@ -81,7 +81,26 @@ function rebuildClass(buf, classMap) {
     const renames = new Map();
     for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
 
+    // First pass: record class-name UTF8 indices (referenced by CONSTANT_Class)
+    const classUtf8Indices = new Set();
     let pos = 10;
+    for (let i = 1; i < cpCount; i++) {
+        const tag = buf[pos++];
+        switch (tag) {
+            case 1: { const len = buf.readUInt16BE(pos); pos += 2 + len; break; }
+            case 3: case 4: pos += 4; break;
+            case 5: case 6: pos += 8; i++; break;
+            case 7: { const ni = buf.readUInt16BE(pos); classUtf8Indices.add(ni); pos += 2; break; }
+            case 8: pos += 2; break;
+            case 9: case 10: case 11: case 12: case 17: case 18: pos += 4; break;
+            case 15: pos += 3; break;
+            case 16: case 19: case 20: pos += 2; break;
+            default: return { buf, patches };
+        }
+    }
+
+    // Second pass: scan UTF8 entries, add classMap matches (only if class name OR 2+ chars)
+    pos = 10;
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
         switch (tag) {
@@ -89,7 +108,10 @@ function rebuildClass(buf, classMap) {
                 const len = buf.readUInt16BE(pos); pos += 2;
                 const val = buf.toString('utf8', pos, pos + len);
                 const mapped = classMap[val];
-                if (typeof mapped === 'string' && mapped !== val) renames.set(val, mapped);
+                const isClassName = classUtf8Indices.has(i);
+                if (typeof mapped === 'string' && mapped !== val && (isClassName || val.length >= 2)) {
+                    renames.set(val, mapped);
+                }
                 pos += len;
                 break;
             }
@@ -105,6 +127,9 @@ function rebuildClass(buf, classMap) {
 
     if (renames.size === 0) return { buf, patches };
 
+    // Build regex for class-name UTF8 indices (for 1-char keys)
+    const classIndicesSet = classUtf8Indices;
+
     const chunks = [buf.subarray(0, 10)];
     pos = 10;
 
@@ -116,7 +141,7 @@ function rebuildClass(buf, classMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                const { str, patches: p } = applyRenames(rawStr, renames);
+                const { str, patches: p } = applyRenames(rawStr, renames, classIndicesSet.has(i));
                 if (p > 0 && str.length < 65536) {
                     patches += p;
                     const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
