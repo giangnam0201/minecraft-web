@@ -77,47 +77,40 @@ function buildGlobalRenameMap(classMap) {
     for (const [k, v] of Object.entries(classMap)) merged[k] = v;
     for (const [k, v] of Object.entries(REPLACE_MAP)) merged[k] = v;
     const sortedKeys = Object.keys(merged).sort((a, b) => b.length - a.length);
-    // Build a combined regex for fast pre-check (only 2+ char keys)
-    const preKeys = sortedKeys.filter(k => k.length >= 2);
-    let preCheckRegex = null;
+    // Build combined regex for 2+ char keys (descriptor + standalone)
+    const multiKeys = sortedKeys.filter(k => k.length >= 2).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    let multiRegex = null;
     try {
-        if (preKeys.length > 0)
-            preCheckRegex = new RegExp(preKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
-    } catch (e) {}
-    return { map: merged, keys: sortedKeys, preCheckRegex };
+        if (multiKeys.length > 0) {
+            const pattern = '(?<=L)(' + multiKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + multiKeys.join('|') + ')(?![a-zA-Z0-9_])';
+            multiRegex = new RegExp(pattern, 'g');
+        }
+    } catch (e) { multiRegex = null; }
+    // Build combined regex for 1-char keys (descriptor only)
+    const singleKeys = sortedKeys.filter(k => k.length === 1).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    let singleRegex = null;
+    try {
+        if (singleKeys.length > 0) {
+            singleRegex = new RegExp('(?<=L)(' + singleKeys.join('|') + ')(?=[;<])', 'g');
+        }
+    } catch (e) { singleRegex = null; }
+    return { map: merged, multiRegex, singleRegex };
 }
 
 function renameString(str, renameMap) {
     let patches = 0;
-    // Fast pre-check for 2+ char keys
-    if (renameMap.preCheckRegex && !renameMap.preCheckRegex.test(str)) {
-        // No 2+ char key present, but still check 1-char keys in descriptors
-        for (const oldStr of renameMap.keys) {
-            if (oldStr.length >= 2) continue;
-            const newStr = renameMap.map[oldStr];
-            const safeRepl = newStr.replace(/\$/g, '$$');
-            const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
-            const m1 = str.match(re1); if (m1) patches += m1.length;
-            str = str.replace(re1, safeRepl);
-        }
-        return { str, patches };
+    if (renameMap.multiRegex) {
+        str = str.replace(renameMap.multiRegex, (match, descKey, wordKey) => {
+            const key = descKey || wordKey;
+            if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
+            return match;
+        });
     }
-    for (const oldStr of renameMap.keys) {
-        if (oldStr.length < 1) continue;
-        const newStr = renameMap.map[oldStr];
-        const safeRepl = newStr.replace(/\$/g, '$$');
-        const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Descriptor: Lkey; or Lkey<
-        const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
-        const m1 = str.match(re1); if (m1) patches += m1.length;
-        str = str.replace(re1, safeRepl);
-        // Standalone (for 2+ char keys)
-        if (oldStr.length >= 2) {
-            const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
-            const m2 = str.match(re2); if (m2) patches += m2.length;
-            str = str.replace(re2, safeRepl);
-        }
+    if (renameMap.singleRegex) {
+        str = str.replace(renameMap.singleRegex, (match, key) => {
+            if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
+            return match;
+        });
     }
     return { str, patches };
 }
