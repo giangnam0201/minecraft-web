@@ -101,11 +101,7 @@ function renameString(str, renameMap, isClassName) {
             return match;
         });
     }
-    // Standalone pattern: for class-name UTF8 entries, the whole string IS the class name
-    if (isClassName && renameMap.map[str] !== undefined && renameMap.map[str] !== str) {
-        patches++;
-        str = renameMap.map[str];
-    }
+    // Standalone class-name replacement disabled (causes method name corruption via shared UTF8)
     return { str, patches };
 }
 
