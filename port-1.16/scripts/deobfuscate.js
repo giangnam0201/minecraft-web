@@ -13,8 +13,12 @@ const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/InetSocketAddress": "org/eaglercraft/network/InetSocketAddress",
+    "java/net/SocketAddress": "org/eaglercraft/network/SocketAddress",
+    "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
+    "x": "net/minecraft/Util",
+    "l": "net/minecraft/CrashReport",
 };
 
 let GLOBAL_PATCHES = 0;
@@ -51,7 +55,7 @@ function applyRenames(str, renames) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
-        if (oldStr.length < 2) continue;
+        if (oldStr.length < 1) continue;
         const newStr = renames.get(oldStr);
         const safeRepl = newStr.replace(/\$/g, '$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

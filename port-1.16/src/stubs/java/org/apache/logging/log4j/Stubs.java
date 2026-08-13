@@ -3,8 +3,11 @@ package org.apache.logging.log4j;
 class Logger {
     public void info(String m) {}
     public void warn(String m) {}
+    public void warn(String m, Throwable t) {}
     public void error(String m) {}
+    public void error(String m, Throwable t) {}
     public void debug(String m) {}
+    public void debug(String m, Throwable t) {}
     public void trace(String m) {}
 }
 
