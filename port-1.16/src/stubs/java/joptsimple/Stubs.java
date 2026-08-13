@@ -7,6 +7,7 @@ class OptionParser {
     public OptionSet parse(String[] a) { return new OptionSet(); }
     public void formatHelpWith(Object o) {}
     public void allowsUnrecognizedOptions() {}
+    public NonOptionArgumentSpec nonOptions() { return new NonOptionArgumentSpec(); }
 }
 
 class OptionSpecBuilder {
@@ -21,6 +22,10 @@ class ArgumentAcceptingOptionSpec extends OptionSpec {
     public ArgumentAcceptingOptionSpec ofType(Class c) { return this; }
     public ArgumentAcceptingOptionSpec defaultsTo(Object o, Object[] os) { return this; }
     public ArgumentAcceptingOptionSpec required() { return this; }
+}
+
+class NonOptionArgumentSpec extends OptionSpec {
+    public NonOptionArgumentSpec ofType(Class c) { return this; }
 }
 
 class OptionSet {
