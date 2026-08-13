@@ -101,7 +101,11 @@ function renameString(str, renameMap, isClassName) {
             return match;
         });
     }
-    // Standalone class-name replacement disabled (causes method name corruption via shared UTF8)
+    // Standalone class-name replacement: only if pure class name (not method/field name)
+    if (isClassName && renameMap.map[str] !== undefined && renameMap.map[str] !== str) {
+        patches++;
+        str = renameMap.map[str];
+    }
     return { str, patches };
 }
 
@@ -110,8 +114,9 @@ function rebuildClass(buf, renameMap) {
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
 
     const cpCount = buf.readUInt16BE(8);
-    // Track which UTF8 indices are class names (referenced by CONSTANT_Class)
+    // Track UTF8 indices referenced by CONSTANT_Class (class names) vs NameAndType (method/field names)
     const classUtf8 = new Set();
+    const nameUtf8 = new Set();
     {
         let p = 10;
         for (let i = 1; i < cpCount; i++) {
@@ -122,7 +127,8 @@ function rebuildClass(buf, renameMap) {
                 case 5: case 6: p += 8; i++; break;
                 case 7: { classUtf8.add(buf.readUInt16BE(p)); p += 2; break; }
                 case 8: p += 2; break;
-                case 9: case 10: case 11: case 12: case 17: case 18: p += 4; break;
+                case 12: { nameUtf8.add(buf.readUInt16BE(p)); p += 4; break; }
+                case 9: case 10: case 11: case 17: case 18: p += 4; break;
                 case 15: p += 3; break;
                 case 16: case 19: case 20: p += 2; break;
                 default: return { buf, patches };
@@ -141,7 +147,7 @@ function rebuildClass(buf, renameMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                const { str, patches: p } = renameString(rawStr, renameMap, classUtf8.has(i));
+                const { str, patches: p } = renameString(rawStr, renameMap, classUtf8.has(i) && !nameUtf8.has(i));
                 if (p > 0 && str.length < 65536) {
                     patches += p;
                     const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
