@@ -22,6 +22,7 @@ class ArgumentAcceptingOptionSpec extends OptionSpec {
     public ArgumentAcceptingOptionSpec ofType(Class c) { return this; }
     public ArgumentAcceptingOptionSpec defaultsTo(Object o, Object[] os) { return this; }
     public ArgumentAcceptingOptionSpec required() { return this; }
+    public List defaultValues() { return new ArrayList(); }
 }
 
 class NonOptionArgumentSpec extends OptionSpec {
@@ -32,6 +33,7 @@ class OptionSet {
     public boolean has(String o) { return false; }
     public boolean has(OptionSpec s) { return false; }
     public Object valueOf(String o) { return null; }
+    public Object valueOf(OptionSpec s) { return null; }
     public List valuesOf(String o) { return new ArrayList(); }
     public List valuesOf(OptionSpec s) { return new ArrayList(); }
 }
