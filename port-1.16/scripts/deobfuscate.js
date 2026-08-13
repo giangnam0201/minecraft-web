@@ -82,7 +82,7 @@ function buildGlobalRenameMap(classMap) {
     let multiRegex = null;
     try {
         if (multiKeys.length > 0) {
-            const pattern = '(?<=L)(' + multiKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + multiKeys.join('|') + ')(?![a-zA-Z0-9_])';
+            const pattern = '(?<=L)(' + multiKeys.join('|') + ')(?=[;<])|(?<![a-zA-Z0-9_/])(' + multiKeys.join('|') + ')(?![a-zA-Z0-9_/])';
             multiRegex = new RegExp(pattern, 'g');
         }
     } catch (e) { multiRegex = null; }
