@@ -111,6 +111,11 @@ function renameString(str, renameMap) {
             if (key && renameMap.map[key]) { patches++; return renameMap.map[key]; }
             return match;
         });
+        // Standalone 1-char class name: entire string is exactly the key
+        if (str.length === 1 && renameMap.map[str]) {
+            patches++;
+            return { str: renameMap.map[str], patches };
+        }
     }
     return { str, patches };
 }
