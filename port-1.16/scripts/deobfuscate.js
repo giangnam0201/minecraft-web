@@ -17,6 +17,8 @@ const REPLACE_MAP = {
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
     "bfw": "net/minecraft/world/entity/player/Player",
     "afd": "net/minecraft/util/GsonHelper",
+    "x": "net/minecraft/Util",
+    "l": "net/minecraft/CrashReport",
 };
 
 let GLOBAL_PATCHES = 0;
@@ -53,18 +55,20 @@ function applyRenames(str, renames) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
-        if (oldStr.length < 3) continue;
+        if (oldStr.length < 1) continue;
         const newStr = renames.get(oldStr);
         const safeRepl = newStr.replace(/\$/g, '$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Descriptor: Lkey; or Lkey<
+        // Descriptor: Lkey; or Lkey< (safe for all keys including 1-char)
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
         str = str.replace(re1, safeRepl);
-        // Standalone: not surrounded by [a-zA-Z0-9_/]
-        const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
-        const m2 = str.match(re2); if (m2) patches += m2.length;
-        str = str.replace(re2, safeRepl);
+        // Standalone: not surrounded by [a-zA-Z0-9_/] (only for 2+ char keys)
+        if (oldStr.length >= 2) {
+            const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
+            const m2 = str.match(re2); if (m2) patches += m2.length;
+            str = str.replace(re2, safeRepl);
+        }
     }
     return { str, patches };
 }
