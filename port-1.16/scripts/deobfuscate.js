@@ -7,16 +7,12 @@ const VERSION_MANIFEST = 'https://launchermeta.mojang.com/mc/game/version_manife
 const OUT_DIR = path.resolve(__dirname, '..', 'libs');
 const OUT_JAR = path.join(OUT_DIR, 'minecraft-1.16.5-deobf.jar');
 
-// Keys >= 3 chars: safe for unconditional split/join
-// Keys 1-2 chars: need regex boundaries
 const REPLACE_MAP = {
     "java/net/Proxy": "org/eaglercraft/network/Proxy",
     "java/net/Authenticator": "org/eaglercraft/network/Authenticator",
     "java/net/InetSocketAddress": "org/eaglercraft/network/InetSocketAddress",
     "java/net/SocketAddress": "org/eaglercraft/network/SocketAddress",
     "java/net/Proxy$Type": "org/eaglercraft/network/Proxy$Type",
-    "bfw": "net/minecraft/world/entity/player/Player",
-    "afd": "net/minecraft/util/GsonHelper",
     "a": "com/mojang/math/Matrix3f",
     "b": "com/mojang/math/Matrix4f",
     "c": "com/mojang/math/OctahedralGroup",
@@ -46,6 +42,7 @@ const REPLACE_MAP = {
 };
 
 let GLOBAL_PATCHES = 0;
+let GLOBAL_RENAME_MAP = null;
 
 function download(url) {
     return new Promise((resolve, reject) => {
@@ -75,20 +72,48 @@ function parseMappings(text) {
     return classMap;
 }
 
-function applyRenames(str, renames, isClassName) {
+function buildGlobalRenameMap(classMap) {
+    const merged = Object.create(null);
+    for (const [k, v] of Object.entries(classMap)) merged[k] = v;
+    for (const [k, v] of Object.entries(REPLACE_MAP)) merged[k] = v;
+    const sortedKeys = Object.keys(merged).sort((a, b) => b.length - a.length);
+    // Build a combined regex for fast pre-check (only 2+ char keys)
+    const preKeys = sortedKeys.filter(k => k.length >= 2);
+    let preCheckRegex = null;
+    try {
+        if (preKeys.length > 0)
+            preCheckRegex = new RegExp(preKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'));
+    } catch (e) {}
+    return { map: merged, keys: sortedKeys, preCheckRegex };
+}
+
+function renameString(str, renameMap) {
     let patches = 0;
-    const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
-    for (const oldStr of sortedKeys) {
+    // Fast pre-check for 2+ char keys
+    if (renameMap.preCheckRegex && !renameMap.preCheckRegex.test(str)) {
+        // No 2+ char key present, but still check 1-char keys in descriptors
+        for (const oldStr of renameMap.keys) {
+            if (oldStr.length >= 2) continue;
+            const newStr = renameMap.map[oldStr];
+            const safeRepl = newStr.replace(/\$/g, '$$');
+            const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
+            const m1 = str.match(re1); if (m1) patches += m1.length;
+            str = str.replace(re1, safeRepl);
+        }
+        return { str, patches };
+    }
+    for (const oldStr of renameMap.keys) {
         if (oldStr.length < 1) continue;
-        const newStr = renames.get(oldStr);
+        const newStr = renameMap.map[oldStr];
         const safeRepl = newStr.replace(/\$/g, '$$');
         const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // Descriptor: Lkey; or Lkey< (safe for all keys)
+        // Descriptor: Lkey; or Lkey<
         const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
         const m1 = str.match(re1); if (m1) patches += m1.length;
         str = str.replace(re1, safeRepl);
-        // Standalone: for 2+ char keys, or 1-char keys that ARE class names
-        if (oldStr.length >= 2 || isClassName) {
+        // Standalone (for 2+ char keys)
+        if (oldStr.length >= 2) {
             const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
             const m2 = str.match(re2); if (m2) patches += m2.length;
             str = str.replace(re2, safeRepl);
@@ -97,65 +122,13 @@ function applyRenames(str, renames, isClassName) {
     return { str, patches };
 }
 
-function rebuildClass(buf, classMap) {
+function rebuildClass(buf, renameMap) {
     let patches = 0;
     if (buf.length < 10 || buf.readUInt32BE(0) !== 0xCAFEBABE) return { buf, patches };
 
     const cpCount = buf.readUInt16BE(8);
-    const renames = new Map();
-    for (const [k, v] of Object.entries(REPLACE_MAP)) renames.set(k, v);
-
-    // First pass: record class-name UTF8 indices (referenced by CONSTANT_Class)
-    const classUtf8Indices = new Set();
-    let pos = 10;
-    for (let i = 1; i < cpCount; i++) {
-        const tag = buf[pos++];
-        switch (tag) {
-            case 1: { const len = buf.readUInt16BE(pos); pos += 2 + len; break; }
-            case 3: case 4: pos += 4; break;
-            case 5: case 6: pos += 8; i++; break;
-            case 7: { const ni = buf.readUInt16BE(pos); classUtf8Indices.add(ni); pos += 2; break; }
-            case 8: pos += 2; break;
-            case 9: case 10: case 11: case 12: case 17: case 18: pos += 4; break;
-            case 15: pos += 3; break;
-            case 16: case 19: case 20: pos += 2; break;
-            default: return { buf, patches };
-        }
-    }
-
-    // Second pass: scan UTF8 entries, add classMap matches (only if class name OR 2+ chars)
-    pos = 10;
-    for (let i = 1; i < cpCount; i++) {
-        const tag = buf[pos++];
-        switch (tag) {
-            case 1: {
-                const len = buf.readUInt16BE(pos); pos += 2;
-                const val = buf.toString('utf8', pos, pos + len);
-                const mapped = classMap[val];
-                const isClassName = classUtf8Indices.has(i);
-                if (typeof mapped === 'string' && mapped !== val && (isClassName || val.length >= 2)) {
-                    renames.set(val, mapped);
-                }
-                pos += len;
-                break;
-            }
-            case 3: case 4: pos += 4; break;
-            case 5: case 6: pos += 8; i++; break;
-            case 7: case 8: pos += 2; break;
-            case 9: case 10: case 11: case 12: case 17: case 18: pos += 4; break;
-            case 15: pos += 3; break;
-            case 16: case 19: case 20: pos += 2; break;
-            default: return { buf, patches };
-        }
-    }
-
-    if (renames.size === 0) return { buf, patches };
-
-    // Build regex for class-name UTF8 indices (for 1-char keys)
-    const classIndicesSet = classUtf8Indices;
-
     const chunks = [buf.subarray(0, 10)];
-    pos = 10;
+    let pos = 10;
 
     for (let i = 1; i < cpCount; i++) {
         const tag = buf[pos++];
@@ -165,7 +138,7 @@ function rebuildClass(buf, classMap) {
             case 1: {
                 const len = buf.readUInt16BE(pos);
                 const rawStr = buf.toString('utf8', pos + 2, pos + 2 + len);
-                const { str, patches: p } = applyRenames(rawStr, renames, classIndicesSet.has(i));
+                const { str, patches: p } = renameString(rawStr, renameMap);
                 if (p > 0 && str.length < 65536) {
                     patches += p;
                     const lb = Buffer.alloc(2); lb.writeUInt16BE(str.length, 0);
@@ -202,7 +175,8 @@ async function main() {
 
     console.log('2. Downloading mappings...');
     const classMap = parseMappings((await download(mUrl)).toString());
-    console.log(`   ${Object.keys(classMap).length} mappings`);
+    GLOBAL_RENAME_MAP = buildGlobalRenameMap(classMap);
+    console.log(`   ${GLOBAL_RENAME_MAP.keys.length} mappings`);
 
     console.log('3. Downloading client JAR...');
     const jar = await download(CLIENT_JAR_URL);
@@ -219,8 +193,8 @@ async function main() {
         if (nm.startsWith('META-INF/')) { skipped++; continue; }
         if (nm.endsWith('.class')) {
             const obf = nm.replace(/\.class$/, '');
-            const deobf = classMap[obf] || REPLACE_MAP[obf];
-            const { buf: patched, patches } = rebuildClass(e.getData(), classMap);
+            const deobf = GLOBAL_RENAME_MAP.map[obf];
+            const { buf: patched, patches } = rebuildClass(e.getData(), GLOBAL_RENAME_MAP);
             GLOBAL_PATCHES += patches;
             newZip.addFile((deobf || obf) + '.class', Buffer.from(patched));
             if (deobf) renamed++; else skipped++;
