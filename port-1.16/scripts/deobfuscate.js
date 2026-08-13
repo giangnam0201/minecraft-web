@@ -51,21 +51,18 @@ function applyRenames(str, renames) {
     let patches = 0;
     const sortedKeys = [...renames.keys()].sort((a, b) => b.length - a.length);
     for (const oldStr of sortedKeys) {
-        if (oldStr.length <= 1) continue;
+        if (oldStr.length < 2) continue;
         const newStr = renames.get(oldStr);
-        if (oldStr.length >= 3) {
-            const parts = str.split(oldStr);
-            if (parts.length > 1 && parts.length < 1000) {
-                patches += parts.length - 1;
-                str = parts.join(newStr);
-            }
-        } else {
-            // 2-char keys: use boundary check to avoid false matches
-            const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const re = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])|(?<=L)' + esc + '(?=[;<])', 'g');
-            const before = str;
-            str = str.replace(re, (m) => { patches++; return newStr; });
-        }
+        const safeRepl = newStr.replace(/\$/g, '$$');
+        const esc = oldStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Descriptor: Lkey; or Lkey<
+        const re1 = new RegExp('(?<=L)' + esc + '(?=[;<])', 'g');
+        const m1 = str.match(re1); if (m1) patches += m1.length;
+        str = str.replace(re1, newStr);
+        // Standalone: not surrounded by [a-zA-Z0-9_/]
+        const re2 = new RegExp('(?<![a-zA-Z0-9_/])' + esc + '(?![a-zA-Z0-9_])', 'g');
+        const m2 = str.match(re2); if (m2) patches += m2.length;
+        str = str.replace(re2, newStr);
     }
     return { str, patches };
 }
